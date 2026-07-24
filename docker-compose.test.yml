@@ -1,0 +1,65 @@
+# The fanart.tv module's test container.
+#
+#   docker compose -f docker-compose.test.yml run --rm test
+#
+# This is the sanctioned way to run this repository's gates. Nothing is built or
+# tested on the host.
+#
+# What the container is really asserting is the **boundary**: this module
+# compiles against the published SDK, the published SDUI contract and the
+# standard library, and nothing else — which boundary_test.go enforces by parsing
+# every import. A host with a populated module cache, a leftover go.work or a
+# stray `replace` can satisfy an import a third party's machine could not, and
+# the boundary test still passes because the import resolved. Here the toolchain
+# is pinned and the dependencies come from the proxy, exactly as a consumer
+# resolves them.
+#
+# That matters more for this module than for a core one, for the opposite reason
+# to the usual. This is an **extension** module (ADR 0062) — the first in the
+# build that is genuinely optional — so it is the closest thing Mosaic has to a
+# third party's module, and the claim it makes is about the ecosystem rather than
+# about the Platform binary.
+#
+# The tests are hermetic — the fake fanart.tv is an httptest server reached by
+# rewriting the request host through the injected http.Client — so this needs no
+# network beyond resolving the contracts, and no API key. There is no fanart.tv
+# key CI could hold that is not somebody's.
+#
+# For a shell in the same environment:
+#
+#   docker compose -f docker-compose.test.yml run --rm test bash
+name: mosaic-fanart-tv-test
+
+services:
+  test:
+    # Pinned to go.mod's `go` directive. Bump both together.
+    image: golang:1.25-bookworm
+    working_dir: /src/module-fanart-tv
+    environment:
+      # The bind mount carries a .git the container has no business stat-ing,
+      # and Go fails the build on its ownership rather than degrading.
+      GOFLAGS: -buildvcs=false
+    volumes:
+      - .:/src/module-fanart-tv
+      - mosaic-fanart-tv-gomod:/go/pkg/mod
+      - mosaic-fanart-tv-gobuild:/root/.cache/go-build
+    command:
+      - bash
+      - -eu
+      - -o
+      - pipefail
+      - -c
+      - |
+        gofmt -l . > /tmp/unformatted
+        if [ -s /tmp/unformatted ]; then
+          echo "These files are not gofmt-clean:" >&2
+          cat /tmp/unformatted >&2
+          exit 1
+        fi
+        go build ./...
+        go vet ./...
+        go test ./...
+
+volumes:
+  mosaic-fanart-tv-gomod:
+  mosaic-fanart-tv-gobuild:
