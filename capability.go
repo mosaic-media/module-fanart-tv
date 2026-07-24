@@ -95,7 +95,10 @@ func (c *Capability) Manifest() v1.Manifest {
 	return v1.Manifest{
 		ID:       CapabilityID,
 		Version:  moduleVersion,
-		Name:     "fanart.tv artwork",
+		Name: "fanart.tv artwork",
+		Description: "A community library of high-resolution artwork — clear logos, character art, " +
+			"banners and backdrops. It adds nothing to your library on its own: it dresses what is " +
+			"already in it.",
 		Provides: []v1.Role{v1.RoleArtwork, v1.RoleSettingsUI},
 	}
 }
