@@ -6,7 +6,7 @@ backdrops, clearlogos, clearart, banners, disc art and per-season art for titles
 
 MIT-licensed, its own Go module, importing only the published
 [`sdk`](https://github.com/mosaic-media/sdk) and
-[`sdui`](https://github.com/mosaic-media/sdui) contracts.
+[`sdui`](https://github.com/mosaic-media/contracts) contracts.
 
 ## What it is for
 
