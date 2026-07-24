@@ -93,9 +93,9 @@ func New(httpClient *http.Client) *Capability {
 // cannot identify anything — a failure no test would catch.
 func (c *Capability) Manifest() v1.Manifest {
 	return v1.Manifest{
-		ID:       CapabilityID,
-		Version:  moduleVersion,
-		Name: "fanart.tv artwork",
+		ID:      CapabilityID,
+		Version: moduleVersion,
+		Name:    "fanart.tv artwork",
 		Description: "A community library of high-resolution artwork — clear logos, character art, " +
 			"banners and backdrops. It adds nothing to your library on its own: it dresses what is " +
 			"already in it.",
