@@ -3,6 +3,7 @@ package fanarttv
 import (
 	"context"
 
+	"github.com/mosaic-media/contracts/sdui"
 	"github.com/mosaic-media/contracts/ui"
 	v1 "github.com/mosaic-media/sdk/contracts/platform/v1"
 )
@@ -79,14 +80,20 @@ func whatItDoesSection() *ui.Element {
 // field to set or replace it, and — only when there is one — a control to clear
 // it.
 func apiKeySection(s Settings) *ui.Element {
-	// The typed value substitutes for "$value" anywhere in the action, which is
-	// how a text field becomes a configureModule invoke (ADR 0038).
-	pending := s
-	pending.APIKey = "$value"
-	field := ui.Component("SubmitField",
-		ui.Prop("placeholder", "Paste your fanart.tv project API key…"),
-		ui.Prop("submitLabel", "Save"),
-		ui.OnTap(ui.Invoke("configureModule", configureInput(pending))))
+	// A form: the field writes `apiKey` into the form's scope and submit merges
+	// the scope into the settings document the invoke carries. The rest of the
+	// document travels in the action, so only what was typed comes from the
+	// scope (ADR 0088). This replaces the "$value" substitution.
+	keep := s
+	keep.APIKey = ""
+	field := ui.Form(
+		ui.Vars(sdui.Vars(sdui.Var("apiKey", sdui.VarString, ""))),
+		ui.SubmitLabel("Save"),
+		ui.SubmitAction(ui.Submit(ui.Invoke("configureModule", configureInput(keep)), "settings")),
+		ui.TextInput(
+			ui.Prop("name", "apiKey"),
+			ui.Prop("placeholder", "Paste your fanart.tv project API key…"),
+			ui.Prop("validators", map[string]any{"required": true})))
 
 	// Three states, and the middle one is why this is not a one-liner: a user
 	// with no key of their own may still have working artwork, and a screen
@@ -128,12 +135,15 @@ func apiKeySection(s Settings) *ui.Element {
 // both are required, and a user who supplies neither is in a perfectly good
 // state.
 func clientKeySection(s Settings) *ui.Element {
-	pending := s
-	pending.ClientKey = "$value"
-	field := ui.Component("SubmitField",
-		ui.Prop("placeholder", "Paste your personal fanart.tv key… (optional)"),
-		ui.Prop("submitLabel", "Save"),
-		ui.OnTap(ui.Invoke("configureModule", configureInput(pending))))
+	keep := s
+	keep.ClientKey = ""
+	field := ui.Form(
+		ui.Vars(sdui.Vars(sdui.Var("clientKey", sdui.VarString, ""))),
+		ui.SubmitLabel("Save"),
+		ui.SubmitAction(ui.Submit(ui.Invoke("configureModule", configureInput(keep)), "settings")),
+		ui.TextInput(
+			ui.Prop("name", "clientKey"),
+			ui.Prop("placeholder", "Paste your personal fanart.tv key… (optional)")))
 
 	if s.ClientKey == "" {
 		return ui.Section("Personal key (optional)",
