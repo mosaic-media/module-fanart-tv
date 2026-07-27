@@ -1,0 +1,60 @@
+//go:build linkercheck
+
+package fanarttv
+
+import "testing"
+
+// The linker-injection guard, behind a build tag so it runs only in the pass
+// that supplies the flag.
+//
+// **`-X` on a path that does not resolve is silently ignored.** Rename the
+// variable, move it to another file's package, or mistype the module path in the
+// release workflow, and the build still succeeds — it just links nothing, and
+// every install that relied on the bundled key gets "fanart.tv API key not set"
+// with no error anywhere upstream of a user's screen.
+//
+// **This module is the reason the rule exists rather than an application of
+// it.** Its `defaultAPIKey` carried the whole policy in a doc comment naming
+// `./cmd/mosaic-platform` as the build path; ADR 0081 took this module out of
+// that binary, no workflow ever injected the key, and there was no guard here —
+// so every released binary shipped an empty one and nothing went red. ADR 0105
+// rule 3 makes the guard mandatory for exactly this reason.
+//
+// The container gate runs the suite twice: once normally, and once as
+//
+//	go test -tags linkercheck \
+//	  -ldflags "-X github.com/mosaic-media/module-fanart-tv.defaultAPIKey=$canary" \
+//	  -run TestLinkerInjectionPathResolves ./...
+//
+// so the symbol path in the release build is verified by the same string that
+// appears in this repository's own gate. The path is spelled once more in
+// `.github/workflows/release.yml`'s `binaries` job, which is the build that
+// actually ships it — an extension module links its own key (ADR 0105 rule 2),
+// because its binaries are cross-compiled here and distributed through the
+// signed registry rather than compiled into the Platform.
+func TestLinkerInjectionPathResolves(t *testing.T) {
+	const canary = "linker-injection-canary"
+	if defaultAPIKey != canary {
+		t.Fatalf("defaultAPIKey = %q, want %q — the -X symbol path no longer resolves, "+
+			"so a release build would link no key and fail silently", defaultAPIKey, canary)
+	}
+
+	// And the resolution actually uses it, not merely stores it. Both halves
+	// are asserted: a user with no key of their own falls through to the
+	// bundled one, and a user with a key is never overridden by it.
+	if apiKey, _ := resolveKeys(Settings{}); apiKey != canary {
+		t.Fatalf("resolveKeys with no user key = %q, want the linked-in %q", apiKey, canary)
+	}
+	if apiKey, _ := resolveKeys(Settings{APIKey: "mine"}); apiKey != "mine" {
+		t.Fatalf("resolveKeys with a user key = %q, want %q — a personal key must win", apiKey, "mine")
+	}
+
+	// And the settings screen can tell which is in use, which is what makes
+	// ADR 0105 rule 6's middle state ("the project key is in use") reachable.
+	if !usingBundledKey(Settings{}) {
+		t.Fatal("usingBundledKey with a linked-in key and no user key = false, want true")
+	}
+	if usingBundledKey(Settings{APIKey: "mine"}) {
+		t.Fatal("usingBundledKey with a user key = true, want false")
+	}
+}

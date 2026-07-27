@@ -31,9 +31,19 @@ var moduleVersion = v1.ModuleVersion(modulePath)
 
 // defaultAPIKey is a fanart.tv project key linked into the binary at build time,
 // so a deployment has working artwork before anyone configures anything. It is
-// empty in an ordinary `go build`; Mosaic's release build sets it:
+// empty in an ordinary `go build`; this module's own release build sets it:
 //
-//	go build -ldflags "-X github.com/mosaic-media/module-fanart-tv.defaultAPIKey=$FANART_KEY" ./cmd/mosaic-platform
+//	go build -ldflags "-X github.com/mosaic-media/module-fanart-tv.defaultAPIKey=$FANART_PROJECT_KEY" ./cmd/module-fanart-tv
+//
+// **The command is this module's, not the Platform's, and that is the whole
+// correction.** This comment named `./cmd/mosaic-platform` from the day it was
+// written, which was true of a core module and never true of this one: ADR 0081
+// took the extension tier out of that binary, so the only build that can apply
+// a `-X` here is the cross-compile in this repository's `release.yml`
+// (ADR 0105 rule 2). Nothing injected the key for the whole life of that
+// comment, every released binary shipped an empty one, and enrichment answered
+// "API key not set" — which is what ADR 0105 rule 3's mandatory guard is for.
+// linkercheck_test.go is that guard.
 //
 // **It is not a secret once the binary ships, and nothing here pretends
 // otherwise.** A string linked into a distributed binary is recoverable with

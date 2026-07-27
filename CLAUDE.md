@@ -9,9 +9,16 @@ still Mosaic — artwork simply stays as good as the metadata source made it.
 before it is core under the coupling or guarantee clause, including
 `module-remote-playback`. The extension tier's *mechanism*
 ([ADR 0064](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0064-extension-module-boundary.md))
-is not built, so this composes statically like the others for now — the tier is a
-delivery classification waiting for a process boundary, not a different way of
-writing the code.
+is built: this is a separate process behind a gRPC harness
+([ADR 0077](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0077-go-plugin-as-the-extension-harness.md)),
+cross-compiled by this repository, catalogued in the signed registry and
+**installed by a user at runtime** rather than compiled into the Platform
+([ADR 0081](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0081-extension-installation-is-user-initiated-and-persistent.md)).
+It is in neither `platform`'s `go.mod` nor its composition root.
+
+**That is the fact most of this module's mistakes come back to**, including the
+one in "The bundled key" below: anything reasoning from "this compiles into
+`cmd/mosaic-platform`" is reasoning about a build that no longer exists.
 
 ## The one thing not to get wrong
 
@@ -106,10 +113,25 @@ Same pattern as `module-tmdb`, same four rules:
   settings the next time they touched any control.
 - **The settings screen describes it, never shows it.** There is nothing for a
   user to copy, verify or fix.
-- **A release that links it needs a `linkercheck` gate.** `-X` on an unresolvable
-  path is silently ignored, so a rename ships a keyless binary with no error
-  anywhere. `module-tmdb` has the canary; **this module does not have one yet**
-  and should get one when the key is first linked in a release build.
+- **`release.yml`'s `binaries` job links it, and it is the only build that can.**
+  A core module's key is applied by `platform`'s release workflow because that
+  workflow links the binary carrying it; this module is not in that binary, so
+  its `-X` belongs in its own cross-compile and `FANART_PROJECT_KEY` belongs in
+  this repository's secrets — the inverse of `module-tmdb`, whose `release.yml`
+  says in as many words that `TMDB_RAC` does *not* belong in its secrets. The
+  local counterpart is the dev stack's `registry-build`, which reads
+  `FANART_PROJECT_KEY` from `platform/.env`.
+- **`linkercheck_test.go` guards the symbol path, and the container gate runs
+  it.** `-X` on an unresolvable path is silently ignored, so a rename ships a
+  keyless binary with no error anywhere.
+
+  **This module is why that guard is mandatory** (ADR 0105 rule 3) rather than
+  an example of the rule. It had the key, the three-state screen, the
+  single-reader function and a doc comment stating the whole policy — and the
+  comment named `./cmd/mosaic-platform`, a build this module left when the tier
+  split happened. No workflow injected the key, nothing checked, every released
+  binary shipped an empty one, and enrichment answered "fanart.tv API key not
+  set" for the whole life of the module.
 
 ## Modules are the forcing function for the SDK
 
@@ -144,18 +166,22 @@ way. There is no fanart.tv key CI could hold that is not somebody's, and
 `apiBaseURL` is a constant on purpose: a settable field so tests could point
 elsewhere would put a seam in the production type that only tests use.
 
-**Until SDK `v0.21.0` is tagged this module builds only in a Go workspace** over
-the sibling `sdk` and `sdui` checkouts, and `go.sum` cannot be completed.
+The gate also runs a second, tagged pass that links a canary into
+`defaultAPIKey` and asserts it arrives — see "The bundled key" above.
 
 ## Versioning and release
 
-The Platform requires this at a **tagged version with no `replace`** — a
-`replace` must never land in a commit. A change is a minor bump, tagged and
-pushed, then the Platform's `go.mod` require is bumped to match.
+A change is a minor bump, tagged and pushed. **Nothing bumps a `require`
+afterwards**: `platform` does not depend on this module (ADR 0081), so there is
+no version line anywhere to move. A release reaches people through the
+**catalogue** — `release.yml`'s `binaries` job cross-compiles and signs, and its
+`dispatch` job tells the registry there is a new version to list.
 
-Pushing the tag is the whole publish; there is no artifact. Warm the Go proxy
-after tagging and before bumping the Platform, since the proxy and checksum
+Warm the Go proxy after tagging anyway: this module is still resolved as a Go
+module by anything that builds it from source, and the proxy and checksum
 database are eventually consistent with a just-pushed tag.
+
+**A `replace` must never land in a commit.**
 
 ## Workflow
 

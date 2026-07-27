@@ -176,15 +176,41 @@ jobs:
 
       # CGO off, so every target cross-compiles from this one runner. The command
       # binary is cmd/module-fanart-tv, whose whole body is host.Serve.
+      #
+      # **The fanart.tv project key is linked in here, and here is the only
+      # place it can be** (ADR 0105 rule 2). A core module's key is applied by
+      # `platform`'s release workflow, because that is the workflow that links
+      # the binary carrying it; ADR 0081 took this module out of that binary, so
+      # the artefact that ships this key is the one cross-compiled below and
+      # `FANART_PROJECT_KEY` belongs in *this* repository's secrets. The code documented
+      # this policy from the start and named `./cmd/mosaic-platform` as its
+      # build path, which nothing has built since the tier split — so no
+      # workflow injected the key, every released binary shipped an empty one,
+      # and artwork enrichment answered "fanart.tv API key not set".
+      #
+      # It is optional, exactly as the TMDB token is: an unset secret links an
+      # empty key, the module says so on its own settings screen, and a user's
+      # own key still works. What is *not* optional is the guard — a `-X` to a
+      # symbol that no longer resolves is silently ignored, so the symbol path
+      # spelled here is the one `linkercheck_test.go` and the test container
+      # assert against a canary on every push.
       - name: Cross-compile
+        env:
+          FANART_PROJECT_KEY: ${{ secrets.FANART_PROJECT_KEY }}
         run: |
           mkdir -p dist
+          if [ -n "${FANART_PROJECT_KEY:-}" ]; then
+            echo "linking a fanart.tv project key into these binaries"
+          else
+            echo "::warning::FANART_PROJECT_KEY is not set — these binaries ship with no bundled key, so artwork needs a key set in Settings › fanart.tv artwork."
+          fi
           for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
             goos=${t%/*}; goarch=${t#*/}
             name="module-fanart-tv-${goos}-${goarch}"
             [ "$goos" = "windows" ] && name="${name}.exe"
             CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch go build \
-              -trimpath -ldflags "-s -w" \
+              -trimpath \
+              -ldflags "-s -w -X github.com/mosaic-media/module-fanart-tv.defaultAPIKey=${FANART_PROJECT_KEY}" \
               -o "dist/${name}" ./cmd/module-fanart-tv
           done
 

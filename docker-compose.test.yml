@@ -59,6 +59,14 @@ services:
         go build ./...
         go vet ./...
         go test ./...
+        # The release build links a fanart.tv project key in with -X. A -X path
+        # that no longer resolves is silently ignored, so the binary ships with
+        # no key and enrichment answers "API key not set" at a user's install
+        # with nothing red anywhere upstream. This pass proves the symbol path
+        # still resolves, using the same path release.yml's binaries job uses.
+        go test -tags linkercheck \
+          -ldflags "-X github.com/mosaic-media/module-fanart-tv.defaultAPIKey=linker-injection-canary" \
+          -run TestLinkerInjectionPathResolves ./...
 
 volumes:
   mosaic-fanart-tv-gomod:
