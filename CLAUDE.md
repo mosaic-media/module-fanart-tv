@@ -1,24 +1,22 @@
 # Claude Instructions — module-fanart-tv
 
-Mosaic's fanart.tv artwork module. It is an **extension module**
-([platform#3](https://github.com/mosaic-media/platform/blob/main/docs/adr/0003-platform-as-execution-kernel.md)):
-it shares no `UnitOfWork` and sits on no hot path, and Mosaic without it is
-still Mosaic — artwork simply stays as good as the metadata source made it.
+Mosaic's fanart.tv artwork module. It declares `RoleArtwork` and
+`RoleSettingsUI`, and nothing else.
 
-**That makes it the first genuinely optional module in the build.** Every module
-before it is core under the coupling or guarantee clause, including
-`module-remote-playback`. The extension tier's *mechanism*
-([platform#39](https://github.com/mosaic-media/platform/blob/main/docs/adr/0039-extension-module-boundary.md))
-is built: this is a separate process behind a gRPC harness
-([sdk#7](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0007-go-plugin-as-the-extension-harness.md)),
-cross-compiled by this repository, catalogued in the signed registry and
-**installed by a user at runtime** rather than compiled into the Platform
-([platform#51](https://github.com/mosaic-media/platform/blob/main/docs/adr/0051-extension-installation-is-user-initiated-and-persistent.md)).
-It is in neither `platform`'s `go.mod` nor its composition root.
+It is an **extension module**
+([architecture#3](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0003-two-module-tiers.md)):
+it shares no `UnitOfWork`, sits on no hot path, and Mosaic without it is still
+Mosaic — artwork simply stays as good as the metadata source made it. It is a
+separate process behind a gRPC harness, cross-compiled here, catalogued in the
+signed registry and **installed by a user at runtime** rather than compiled into
+the Platform
+([platform#39](https://github.com/mosaic-media/platform/blob/main/docs/adr/0039-extension-module-boundary.md),
+[platform#40](https://github.com/mosaic-media/platform/blob/main/docs/adr/0040-module-distribution-and-trust.md),
+[platform#51](https://github.com/mosaic-media/platform/blob/main/docs/adr/0051-extension-installation-is-user-initiated-and-persistent.md)).
 
 **That is the fact most of this module's mistakes come back to**, including the
-one in "The bundled key" below: anything reasoning from "this compiles into
-`cmd/mosaic-platform`" is reasoning about a build that no longer exists.
+one under "The bundled key": anything reasoning from "this compiles into the
+Platform binary" is reasoning about a build this module left.
 
 ## The one thing not to get wrong
 
@@ -29,16 +27,33 @@ exists to prevent.
 
 [platform#23](https://github.com/mosaic-media/platform/blob/main/docs/adr/0023-metadata-as-required-capability.md)
 makes a registered `RoleMetadata` *and* `RoleSearch` a composition-root
-requirement — the serving composition refuses to start without them, because a
-Mosaic that cannot identify or find content reads as broken. This module cannot
-name a film. Declaring the role to reach `ContentMetadata`'s image fields would
-satisfy half that check with a module structurally incapable of meeting it, and
-the failure would not be a compile error or a red test: it would be a deployment
-that boots and finds nothing.
+requirement, because a Mosaic that cannot identify or find content reads as
+broken. **This module cannot name a film.** Declaring the role to reach
+`ContentMetadata`'s image fields would satisfy half that check with a module
+structurally incapable of meeting it, and the failure would be neither a compile
+error nor a red test: it would be a deployment that boots and finds nothing.
 
 `boundary_test.go`'s `TestManifestDeclaresNoMetadataRole` is what makes it a red
 test. Keep it, and keep `search`, `catalog` and `stream` in its forbidden list
 for the same reason.
+
+## The boundary is the point
+
+- **Import only [`sdk`](https://github.com/mosaic-media/sdk),
+  [`contracts`](https://github.com/mosaic-media/contracts) and the standard
+  library.** `boundary_test.go` parses every import in the package and fails on
+  anything else. The `contracts` exemption is there because this module authors
+  its own settings screen
+  ([sdk#4](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0004-module-contributed-settings-ui.md),
+  [contracts#3](https://github.com/mosaic-media/contracts/blob/main/docs/adr/0003-sdui-contract-repository.md)).
+- **The test scans the module package, not `cmd/`.** The harness entrypoint
+  additionally imports `sdk/host` to serve itself out of process, which is what
+  an extension module is and is not a violation — but it also means the parse
+  does not cover it. A dependency added under `cmd/` is one nothing here catches.
+- **Being optional makes the boundary an ecosystem claim, not a build-safety
+  one.** This is the shape a third party's module takes, written against nothing
+  but the published surface. That is a reason to hold it harder, not a licence to
+  relax it.
 
 ## Everything fanart.tv-shaped stops in `fanart.go`
 
@@ -49,7 +64,7 @@ and there is more to corrupt than the API's simplicity suggests:
 - **Two endpoints keyed by different identifier spaces** — films by TMDB *or*
   IMDb id, television by TVDB id and nothing else. `endpointFor` owns this and
   the Platform must never learn it. It is also why `ArtworkRequest` hands over
-  the whole identity set at once rather than one at a time: which id is usable
+  the whole identity set at once rather than one id at a time: which id is usable
   depends on what is being asked about.
 - **The response's keys *are* the artwork types**, so it decodes into a map
   rather than a struct. A struct would silently drop every type this build
@@ -58,14 +73,11 @@ and there is more to corrupt than the API's simplicity suggests:
   typed as strings and converted on the way out, because decoding them as numbers
   fails the entire response on one odd entry, and losing a title's whole artwork
   over one bad `likes` value is not a trade worth making.
-- **`lang: "00"` is textless, not a language.** See below.
 
 `artworkTypeSlot` is deliberately **one table of data, not a switch**, so a type
 fanart.tv renames or adds is a one-line change. An absent key is ignored rather
-than guessed at: the slot vocabulary is open
-([platform#11](https://github.com/mosaic-media/platform/blob/main/docs/adr/0011-open-and-closed-vocabularies.md)),
-but inventing a mapping is worse than carrying nothing — a disc image rendered as
-a poster is a visible defect nobody reports.
+than guessed at: inventing a mapping is worse than carrying nothing — a disc
+image rendered as a poster is a visible defect nobody reports.
 
 **The table has not been verified against fanart.tv's live documentation.** Do
 that before claiming coverage. Because unknown keys are ignored, the failure mode
@@ -77,13 +89,14 @@ still a gap.
 Both are tested, and both fail silently if broken — a worse image is still an
 image, so nothing goes red and nobody is told.
 
-- **`languageOf` maps `"00"` to an empty string.** That empty string is what the
-  Platform's selection rule reads as *textless*, and textless is the correct
-  backdrop to sit under a hero's clearlogo
+- **`languageOf` maps `"00"` to an empty string.** `lang: "00"` is *textless*,
+  not a language. That empty string is what the Platform's selection rule reads
+  as textless, and textless is the correct backdrop to sit under a hero's
+  clearlogo
   ([platform#47](https://github.com/mosaic-media/platform/blob/main/docs/adr/0047-artwork-is-a-candidate-set.md)).
-  Carried through as a language, every textless image would look foreign-language
-  and the preference would never fire. This is the single most visible thing the
-  module does.
+  Carried through as a language, every textless image would look
+  foreign-language and the preference would never fire. This is the single most
+  visible thing the module does.
 - **`rankOf` lifts HD variants above their SD twins.** Likes accumulate per
   image, so an older SD logo frequently outscores the HD one that replaced it.
   It is the one ordering fanart.tv's own data cannot express, and `hdRankBonus`
@@ -92,142 +105,140 @@ image, so nothing goes red and nobody is told.
 ## This module ranks nothing and chooses nothing
 
 It returns candidates. **The Platform's selection rule decides which one fills a
-slot**, because that choice is ultimately a user's and a module cannot hold it.
-Do not add a "best image" heuristic here — if the selection is wrong, the rule in
-the Platform's `enrich_artwork.go` is where it is wrong.
+slot**, because that choice is ultimately a user's and a module cannot hold it
+([platform#47](https://github.com/mosaic-media/platform/blob/main/docs/adr/0047-artwork-is-a-candidate-set.md)).
+Do not add a "best image" heuristic here — if the selection is wrong, it is wrong
+in the Platform.
 
-The one exception is the HD bonus above, and it is an exception because it
+The HD bonus above is the one exception, and it is an exception because it
 corrects the source's *own* ranking rather than expressing a preference about the
 result.
 
 ## The bundled key
 
-Same pattern as `module-tmdb`, same four rules:
+`defaultAPIKey` is linked in at build time with `-ldflags -X`. The six rules
+governing every Mosaic project credential are in
+[architecture#4](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0004-project-credentials-in-official-builds.md);
+these are the ones easiest to break from inside this repository:
 
-- **`resolveKeys` is the only function that reads `defaultAPIKey`.** Keep it that
-  way — it is what makes "never written into settings, never rendered, never
-  logged" verifiable by reading rather than a claim to trust.
+- **`resolveKeys` is the only function that reads the symbol.** `bundledKeyPresent`
+  and `usingBundledKey` both ask `resolveKeys` rather than the variable, and the
+  settings screen asks them. The linker guard is the deliberate exception and
+  ships in no binary. This has been broken once already, in the way that is
+  hardest to see: the presence checks read the variable directly while the doc
+  comment above `resolveKeys` still claimed a single reader. **Changing the
+  screen is when to re-check it.**
 - **`Settings.APIKey` only ever holds the user's own key.** Never populate it
   from the bundled one as a convenience: `configureModule` replaces the whole
   document, so it would write a shared build-time credential into a user's stored
   settings the next time they touched any control.
-- **The settings screen describes it, never shows it.** There is nothing for a
-  user to copy, verify or fix.
-- **`release.yml`'s `binaries` job links it, and it is the only build that can.**
-  A core module's key is applied by `platform`'s release workflow because that
-  workflow links the binary carrying it; this module is not in that binary, so
-  its `-X` belongs in its own cross-compile and `FANART_PROJECT_KEY` belongs in
-  this repository's secrets — the inverse of `module-tmdb`, whose `release.yml`
-  says in as many words that `TMDB_RAC` does *not* belong in its secrets. The
-  local counterpart is the dev stack's `registry-build`, which reads
-  `FANART_PROJECT_KEY` from `platform/.env`.
-- **`linkercheck_test.go` guards the symbol path, and the container gate runs
-  it.** `-X` on an unresolvable path is silently ignored, so a rename ships a
-  keyless binary with no error anywhere.
+- **The settings screen describes the bundled key, never shows it.** There is
+  nothing for a user to copy, verify or fix.
+- **This repository's own `release.yml` links it, and it is the only build that
+  can.** A core module's key is applied by the workflow that links the binary
+  carrying it; this module is not in that binary, so its `-X` lives in the
+  `binaries` job's cross-compile and `FANART_PROJECT_KEY` belongs in **this**
+  repository's secrets. That is the inverse of a core module, whose key must not
+  be held by the module repository at all.
 
-  **This module is why that guard is mandatory** ([supervisor#1](https://github.com/mosaic-media/supervisor/blob/main/docs/adr/0001-supervisor-as-host-manager.md) rule 3) rather than
-  an example of the rule. It had the key, the three-state screen, the
-  single-reader function and a doc comment stating the whole policy — and the
-  comment named `./cmd/mosaic-platform`, a build this module left when the tier
-  split happened. No workflow injected the key, nothing checked, every released
-  binary shipped an empty one, and enrichment answered "fanart.tv API key not
-  set" for the whole life of the module.
+**The linker guard is mandatory, and this module is why.** `-X` against a symbol
+that no longer resolves is *silently ignored*. This module had the key, the
+three-state screen, the single-reader function and the whole policy written out
+in a doc comment — and the comment named a build the tier split had taken it out
+of. No workflow injected the key, nothing checked, every released binary shipped
+an empty one, and enrichment answered "fanart.tv API key not set" for the whole
+life of the module. `linkercheck_test.go` links a canary through the same symbol
+path the release build uses, and **both** `docker-compose.test.yml` and
+`.github/workflows/verify.yml` now run that pass. Renaming the variable or moving
+its package means updating the path in all three.
+
+> **A citation in this repository's own source is wrong and has not been
+> corrected here.** `capability.go` and `verify.yml` attribute these rules to
+> [supervisor#1](https://github.com/mosaic-media/supervisor/blob/main/docs/adr/0001-supervisor-as-host-manager.md),
+> which is the Supervisor's host-manager record and carries no numbered rules at
+> all. The record meant is
+> [architecture#4](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0004-project-credentials-in-official-builds.md).
+> It resolves, so no lint catches it.
 
 ## Modules are the forcing function for the SDK
 
 When something cannot be expressed, that is a **finding**, not an obstacle to
-work around. **The SDK is where the *shape* of the interaction goes; the Platform
-holds the implementations, and the SDK names no library and depends on nothing**
-([sdk#10](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0010-the-sdk-carries-no-implementation.md)).
-Applied to the credential problem below, that rules out the tempting answer: a
-module reaches the Platform's secret facility by *declaring* a settings field
-secret and letting the Platform seal it, never through `Seal`/`Open` primitives
-in the SDK, which would publish an implementation and hand a module an
-encryption oracle.
+work around. **Do not simulate a missing surface locally.**
 
-This module has already produced three findings, all written up in the README's
-honest limits or in the code:
+**The SDK is where the *shape* of an interaction goes; the Platform holds the
+implementations**
+([sdk#10](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0010-the-sdk-carries-no-implementation.md)
+— read its Status before repeating what it decided as though it were built).
+Applied to the credential problem, that rules out the tempting answer: a module
+reaches the Platform's secret facility by *declaring* a settings field secret and
+letting the Platform seal it, never through `Seal`/`Open` primitives in the SDK,
+which would publish an implementation and hand a module an encryption oracle.
 
-- **`v1.Capability` bundles identity with `Import`.** An enrichment-only module
-  has to stub the one write verb it can never perform. Fine for one module; worth
-  taking to the SDK if a second appears.
-- **`configureModule` has no merge semantic** ([platform#17](https://github.com/mosaic-media/platform/blob/main/docs/adr/0017-module-settings.md)),
-  so every control on the settings screen must echo the credential back through
-  the client. `module-tmdb` found this first; **two modules hitting it
-  independently is what makes it an SDK item rather than a quirk.**
-- **Cinemeta-sourced series are unenrichable here**, because fanart.tv needs a
-  TVDB id and Cinemeta binds only `imdb`. Not fixable in this module.
-
-Do not simulate a missing surface locally.
+**The findings this module has produced live in `README.md`'s "Honest limits".**
+That is the published list and the one a reader without this file sees; a second
+copy here is how the first goes stale. Add to it in the same change that finds
+the gap.
 
 ## Everything runs in the container, nothing runs on the host
+
+**Do not run `go build`, `go test`, `go vet` or `gofmt` directly on this
+machine.**
 
 ```bash
 docker compose -f docker-compose.test.yml run --rm test
 ```
 
-That runs gofmt, `go build ./...`, `go vet ./...` and `go test ./...` against the
-Go version pinned in the compose file, which must stay equal to `go.mod`'s.
+That runs gofmt, `go build ./...`, `go vet ./...`, `go test ./...` and the tagged
+`linkercheck` pass, against the Go version pinned in the compose file, which must
+stay equal to `go.mod`'s. Append `bash` for a shell in the same environment.
 
-The tests are **hermetic** — a fake fanart.tv over `httptest` reached by
+**`.github/workflows/verify.yml` mirrors that compose file step for step**, and
+the two must stay in step: the compose file is what you run, the workflow is what
+refuses the push.
+
+What the container is protecting is **the boundary**. A host with a populated
+module cache, a leftover `go.work` or a stray `replace` can satisfy an import a
+third party's machine could not, and `boundary_test.go` still passes because the
+import resolved.
+
+The tests are **hermetic** — a fake fanart.tv over `httptest`, reached by
 rewriting the request host through the injected `http.Client`. Keep them that
 way. There is no fanart.tv key CI could hold that is not somebody's, and
 `apiBaseURL` is a constant on purpose: a settable field so tests could point
 elsewhere would put a seam in the production type that only tests use.
 
-The gate also runs a second, tagged pass that links a canary into
-`defaultAPIKey` and asserts it arrives — see "The bundled key" above.
-
 ## Versioning and release
 
-A change is a minor bump, tagged and pushed. **Nothing bumps a `require`
-afterwards**: `platform` does not depend on this module ([platform#51](https://github.com/mosaic-media/platform/blob/main/docs/adr/0051-extension-installation-is-user-initiated-and-persistent.md)), so there is
-no version line anywhere to move. A release reaches people through the
-**catalogue** — `release.yml`'s `binaries` job cross-compiles and signs, and its
-`dispatch` job tells the registry there is a new version to list.
+A change is a **minor bump**, tagged and pushed. **A `replace` must never land in
+a commit.**
+
+**Nothing bumps a `require` afterwards.** The Platform does not depend on this
+module
+([platform#51](https://github.com/mosaic-media/platform/blob/main/docs/adr/0051-extension-installation-is-user-initiated-and-persistent.md)),
+so there is no version line to move. A release reaches people through the
+**catalogue**: `release.yml`'s `binaries` job cross-compiles and signs, and its
+`dispatch` job tells the registry there is a new version to list. That dispatch
+waits on `binaries` on purpose — a catalogue entry pointing at a release whose
+binaries do not exist yet is worse than a late one.
 
 Warm the Go proxy after tagging anyway: this module is still resolved as a Go
-module by anything that builds it from source, and the proxy and checksum
-database are eventually consistent with a just-pushed tag.
-
-**A `replace` must never land in a commit.**
+module by anything building it from source, and the proxy and checksum database
+are eventually consistent with a just-pushed tag.
 
 ## Workflow
 
-- Commit and push this repository **separately** from `platform`.
-- **Commit author identity** must be `AdamNi-7080 <anicholls41@gmail.com>`.
-- The test container green before pushing.
 - Observability goes through the SDK's ambient `v1.Telemetry`
   ([sdk#5](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0005-modules-observe-through-the-sdk.md)),
   reached as `TelemetryFrom(ctx)`. Do not print, and do not configure an
-  exporter or a sink. The API key is a credential: classify it, never write it
-  verbatim.
-- **MIT-licensed**, unlike the Platform's AGPL. Files here carry no SPDX header —
-  match the files already present.
+  exporter, a sink or retention — the Platform owns the observability plane. The
+  API key is a credential: classify it, never write it verbatim.
+- **MIT-licensed**
+  ([architecture#1](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0001-licensing.md)).
+  Files here carry no SPDX header — match the files already present.
+- **This repository owns no decision records**, and that is correct rather than
+  an oversight: every decision governing it is enforced somewhere else. Do not
+  create a `docs/adr/` here to hold one; take it to the repository whose gate,
+  composition root or release workflow would enforce it.
 
-## The roadmap and the decision records
-
-These rules are identical in every Mosaic repository.
-
-### The roadmap is maintained, not consulted
-
-**`docs/roadmap.md` in [`architecture`](https://github.com/mosaic-media/architecture)
-is the single record of where the build is.** Read it before starting work, and
-**update it in the same session as the change that dates it.**
-
-- A slice that lands is marked landed, with what was left out.
-- Implementation that departs from the plan is recorded where it departed.
-- Do not restate the roadmap here.
-- A capability with no client path is not done — it is
-  [owed](https://github.com/mosaic-media/architecture/blob/main/docs/unreachable-capability.md).
-
-### Decision records are append-only
-
-- **Never rewrite a record's body to match what was built.**
-- **State changes in the `**Status:**` line, and nowhere else.**
-- **A changed decision needs a new record that supersedes it.** Both then stand.
-- **An unbuilt decision is not a superseded one.**
-- Records live only in `architecture/docs/adr/`, added to `nav:` in `mkdocs.yml`,
-  and `mkdocs build --strict` must pass.
-
-**If the code and a record disagree, say so rather than quietly picking one.**
+<!-- shared-rules:begin -->
+<!-- shared-rules:end -->
