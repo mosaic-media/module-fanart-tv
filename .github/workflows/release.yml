@@ -178,7 +178,7 @@ jobs:
       # binary is cmd/module-fanart-tv, whose whole body is host.Serve.
       #
       # **The fanart.tv project key is linked in here, and here is the only
-      # place it can be** (supervisor#1 rule 2). A core module's key is applied by
+      # place it can be** (architecture#4 rule 2). A core module's key is applied by
       # `platform`'s release workflow, because that is the workflow that links
       # the binary carrying it; platform#51 took this module out of that binary, so
       # the artefact that ships this key is the one cross-compiled below and

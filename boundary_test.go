@@ -15,7 +15,7 @@ import (
 // SDK, and the shared SDUI contract it authors its settings screen with
 // (sdk#4) — plus the standard library.
 //
-// This is an **extension** module (platform#3): nothing about Mosaic breaks
+// This is an **extension** module (architecture#3): nothing about Mosaic breaks
 // without it, artwork simply stays as good as the metadata source made it. That
 // makes the boundary an ecosystem claim rather than a build-safety one — this is
 // the shape a third party's module takes, written against nothing but the

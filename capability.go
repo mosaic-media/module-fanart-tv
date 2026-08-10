@@ -40,9 +40,9 @@ var moduleVersion = v1.ModuleVersion(modulePath)
 // written, which was true of a core module and never true of this one: platform#51
 // took the extension tier out of that binary, so the only build that can apply
 // a `-X` here is the cross-compile in this repository's `release.yml`
-// (supervisor#1 rule 2). Nothing injected the key for the whole life of that
+// (architecture#4 rule 2). Nothing injected the key for the whole life of that
 // comment, every released binary shipped an empty one, and enrichment answered
-// "API key not set" — which is what supervisor#1 rule 3's mandatory guard is for.
+// "API key not set" — which is what architecture#4 rule 3's mandatory guard is for.
 // linkercheck_test.go is that guard.
 //
 // **It is not a secret once the binary ships, and nothing here pretends
@@ -203,7 +203,7 @@ func decodeSettings(raw []byte) (Settings, error) {
 // resolveKeys picks the credentials for one invocation: the user's key when
 // they have set one, otherwise the key linked into the binary.
 //
-// **This is the only function in the module that reads defaultAPIKey** (supervisor#1
+// **This is the only function in the module that reads defaultAPIKey** (architecture#4
 // rule 4). The linker guard reads it too, and that is the deliberate exception:
 // it is a build-tagged test whose whole job is to prove the symbol path still
 // resolves, and it ships in no binary. Keeping it that way is what makes "never

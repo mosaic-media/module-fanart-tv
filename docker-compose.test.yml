@@ -15,7 +15,7 @@
 # resolves them.
 #
 # That matters more for this module than for a core one, for the opposite reason
-# to the usual. This is an **extension** module (platform#3) — the first in the
+# to the usual. This is an **extension** module (architecture#3) — the first in the
 # build that is genuinely optional — so it is the closest thing Mosaic has to a
 # third party's module, and the claim it makes is about the ecosystem rather than
 # about the Platform binary.
