@@ -99,7 +99,7 @@ func apiKeySection(s Settings) *ui.Element {
 	// with no key of their own may still have working artwork, and a screen
 	// showing an empty field would read as broken.
 	if s.APIKey == "" {
-		if defaultAPIKey == "" {
+		if !usingBundledKey(s) {
 			return ui.Section("Project key",
 				ui.Banner("fanart.tv has no anonymous access, so no artwork is fetched until a key is set. Create a free account at fanart.tv, then copy the project API key from your account's API section.", ui.ToneWarning),
 				field)
@@ -116,7 +116,7 @@ func apiKeySection(s Settings) *ui.Element {
 	cleared := s
 	cleared.APIKey = ""
 	revert := "Clearing it stops artwork being fetched until you add another."
-	if defaultAPIKey != "" {
+	if bundledKeyPresent() {
 		revert = "Clearing it falls back to the key bundled with Mosaic."
 	}
 	return ui.Section("Project key",

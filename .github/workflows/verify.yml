@@ -60,3 +60,22 @@ jobs:
       # a developer's machine can hide a violation; a fresh runner cannot.
       - name: go test
         run: go test ./...
+
+      # The `binaries` job in release.yml links a fanart.tv project key in with
+      # `-X`. A `-X` path that no longer resolves is *silently ignored*, so a
+      # rename, a package move or a tier change ships a keyless binary with no
+      # error anywhere and the failure surfaces as "fanart.tv API key not set" at
+      # a user's install. This links a canary through the same symbol path that
+      # release build uses and fails if it does not arrive.
+      #
+      # ADR 0105 rule 3 makes this mandatory, and this module is the reason: it
+      # had the key, the screen and the single-reader function, and a doc comment
+      # naming a build ADR 0081 had taken it out of — so every released binary
+      # shipped an empty key for the module's whole life with nothing red.
+      # docker-compose.test.yml has run this pass since; the workflow that
+      # refuses the push did not, which is precisely the half that matters.
+      - name: linker injection guard
+        run: |
+          go test -tags linkercheck \
+            -ldflags "-X github.com/mosaic-media/module-fanart-tv.defaultAPIKey=linker-injection-canary" \
+            -run TestLinkerInjectionPathResolves ./...

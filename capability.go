@@ -55,8 +55,9 @@ var moduleVersion = v1.ModuleVersion(modulePath)
 // it, and why the settings screen says plainly which one is in use.
 //
 // It is never written into the settings document, never rendered, and never
-// logged. resolveKeys is the only function that reads it; keeping it that way is
-// what makes those three claims verifiable by reading rather than by trust.
+// logged. resolveKeys is the only function in the module that reads it, the
+// build-tagged guard above being the one exception; keeping it that way is what
+// makes those three claims verifiable by reading rather than by trust.
 var defaultAPIKey string
 
 // Capability satisfies the SDK's capability contract and the roles it declares.
@@ -202,9 +203,15 @@ func decodeSettings(raw []byte) (Settings, error) {
 // resolveKeys picks the credentials for one invocation: the user's key when
 // they have set one, otherwise the key linked into the binary.
 //
-// **This is the only function that reads defaultAPIKey.** Keeping it that way is
-// what makes "never written into settings, never rendered, never logged" a
-// property that can be verified by reading rather than a claim to trust.
+// **This is the only function in the module that reads defaultAPIKey** (ADR 0105
+// rule 4). The linker guard reads it too, and that is the deliberate exception:
+// it is a build-tagged test whose whole job is to prove the symbol path still
+// resolves, and it ships in no binary. Keeping it that way is what makes "never
+// written into settings, never rendered, never logged" a property that can be
+// verified by reading rather than a claim to trust.
+//
+// Anything that needs to know only *whether* a bundled key exists asks
+// bundledKeyPresent below, which asks this function rather than the variable.
 func resolveKeys(settings Settings) (apiKey, clientKey string) {
 	apiKey = settings.APIKey
 	if apiKey == "" {
@@ -213,9 +220,26 @@ func resolveKeys(settings Settings) (apiKey, clientKey string) {
 	return apiKey, settings.ClientKey
 }
 
+// bundledKeyPresent reports whether this build carries a project key at all.
+//
+// It is a different question from usingBundledKey below: a user who has set
+// their own key is not using the bundled one, but whether clearing theirs falls
+// back or breaks still turns on whether one was linked in. The settings screen
+// needs both.
+//
+// It resolves against a settings document holding no user key, so the answer
+// arrives as "the resolver found something" and the key itself never leaves
+// resolveKeys. A screen that tested the variable directly would answer the same
+// question and cost rule 4, which is what happened here: the presence checks were
+// reading defaultAPIKey while the comment above still claimed a single reader.
+func bundledKeyPresent() bool {
+	apiKey, _ := resolveKeys(Settings{})
+	return apiKey != ""
+}
+
 // usingBundledKey reports whether this deployment is running on the shared
 // build-time credential, so the settings screen can say which one is in use
 // without ever rendering either.
 func usingBundledKey(settings Settings) bool {
-	return settings.APIKey == "" && defaultAPIKey != ""
+	return settings.APIKey == "" && bundledKeyPresent()
 }
