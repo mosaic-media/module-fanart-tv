@@ -136,8 +136,17 @@ Same pattern as `module-tmdb`, same four rules:
 ## Modules are the forcing function for the SDK
 
 When something cannot be expressed, that is a **finding**, not an obstacle to
-work around. This module has already produced three, all written up in the
-README's honest limits or in the code:
+work around. **The SDK is where the *shape* of the interaction goes; the Platform
+holds the implementations, and the SDK names no library and depends on nothing**
+([ADR 0135](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0135-the-sdk-carries-no-implementation.md)).
+Applied to the credential problem below, that rules out the tempting answer: a
+module reaches the Platform's secret facility by *declaring* a settings field
+secret and letting the Platform seal it, never through `Seal`/`Open` primitives
+in the SDK, which would publish an implementation and hand a module an
+encryption oracle.
+
+This module has already produced three findings, all written up in the README's
+honest limits or in the code:
 
 - **`v1.Capability` bundles identity with `Import`.** An enrichment-only module
   has to stub the one write verb it can never perform. Fine for one module; worth
