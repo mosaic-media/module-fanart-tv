@@ -9,7 +9,7 @@ import (
 )
 
 // SettingsUI renders the module's own settings screen as SDUI (RoleSettingsUI,
-// ADR 0038): set or replace the project key, add a personal key for early
+// sdk#4): set or replace the project key, add a personal key for early
 // access, and read the attribution fanart.tv's terms expect.
 //
 // Every mutating control is an Invoke of the Platform's configureModule command
@@ -42,13 +42,13 @@ func (c *Capability) SettingsUI(ctx context.Context, req v1.SettingsUIRequest) (
 // one field never silently drops the other.
 //
 // **The whole document, including both keys, is what a control has to carry, and
-// that is ADR 0021's gap rather than a choice made here.** configureModule
+// that is platform#17's gap rather than a choice made here.** configureModule
 // *replaces* the stored document; there is no partial update. So a module with a
 // secret setting must echo that secret back through the client on every control
 // that changes anything else, or setting the personal key would erase the
 // project key. The credential therefore appears inside this screen's action
 // payloads — reaching only an admin holding `module.configure`, but bypassing
-// the Platform's redaction classes (ADR 0056), which cannot see inside a
+// the Platform's redaction classes (platform#34), which cannot see inside a
 // module's opaque settings document.
 //
 // This is the same finding `module-tmdb` recorded, reached independently by the

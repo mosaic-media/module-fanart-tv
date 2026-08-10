@@ -11,7 +11,7 @@ name: verify
 # rather than nesting a container inside one.
 #
 # There is no license-header check here, unlike the platform's. Files in this
-# repository carry no SPDX header on purpose (ADR 0022: modules are MIT, the
+# repository carry no SPDX header on purpose (platform#1: modules are MIT, the
 # Platform is AGPL), so checking for one would be checking for the wrong thing.
 
 on:
@@ -68,9 +68,9 @@ jobs:
       # a user's install. This links a canary through the same symbol path that
       # release build uses and fails if it does not arrive.
       #
-      # ADR 0105 rule 3 makes this mandatory, and this module is the reason: it
+      # supervisor#1 rule 3 makes this mandatory, and this module is the reason: it
       # had the key, the screen and the single-reader function, and a doc comment
-      # naming a build ADR 0081 had taken it out of — so every released binary
+      # naming a build platform#51 had taken it out of — so every released binary
       # shipped an empty key for the module's whole life with nothing red.
       # docker-compose.test.yml has run this pass since; the workflow that
       # refuses the push did not, which is precisely the half that matters.

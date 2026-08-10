@@ -1,19 +1,19 @@
 # Claude Instructions — module-fanart-tv
 
 Mosaic's fanart.tv artwork module. It is an **extension module**
-([ADR 0062](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0062-two-module-tiers.md)):
+([platform#3](https://github.com/mosaic-media/platform/blob/main/docs/adr/0003-platform-as-execution-kernel.md)):
 it shares no `UnitOfWork` and sits on no hot path, and Mosaic without it is
 still Mosaic — artwork simply stays as good as the metadata source made it.
 
 **That makes it the first genuinely optional module in the build.** Every module
 before it is core under the coupling or guarantee clause, including
 `module-remote-playback`. The extension tier's *mechanism*
-([ADR 0064](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0064-extension-module-boundary.md))
+([platform#39](https://github.com/mosaic-media/platform/blob/main/docs/adr/0039-extension-module-boundary.md))
 is built: this is a separate process behind a gRPC harness
-([ADR 0077](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0077-go-plugin-as-the-extension-harness.md)),
+([sdk#7](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0007-go-plugin-as-the-extension-harness.md)),
 cross-compiled by this repository, catalogued in the signed registry and
 **installed by a user at runtime** rather than compiled into the Platform
-([ADR 0081](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0081-extension-installation-is-user-initiated-and-persistent.md)).
+([platform#51](https://github.com/mosaic-media/platform/blob/main/docs/adr/0051-extension-installation-is-user-initiated-and-persistent.md)).
 It is in neither `platform`'s `go.mod` nor its composition root.
 
 **That is the fact most of this module's mistakes come back to**, including the
@@ -24,10 +24,10 @@ one in "The bundled key" below: anything reasoning from "this compiles into
 
 **Never declare `RoleMetadata`.** It is the shortest path to putting artwork
 somewhere, and it is the specific mistake
-[ADR 0075](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0075-the-artwork-provider-role.md)
+[sdk#6](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0006-the-artwork-provider-role.md)
 exists to prevent.
 
-[ADR 0035](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0035-metadata-as-required-capability.md)
+[platform#23](https://github.com/mosaic-media/platform/blob/main/docs/adr/0023-metadata-as-required-capability.md)
 makes a registered `RoleMetadata` *and* `RoleSearch` a composition-root
 requirement — the serving composition refuses to start without them, because a
 Mosaic that cannot identify or find content reads as broken. This module cannot
@@ -43,7 +43,7 @@ for the same reason.
 ## Everything fanart.tv-shaped stops in `fanart.go`
 
 This module is an anti-corruption layer
-([ADR 0051](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0051-modules-as-anti-corruption-layers.md)),
+([module-stremio-addons#2](https://github.com/mosaic-media/module-stremio-addons/blob/main/docs/adr/0002-modules-as-anti-corruption-layers.md)),
 and there is more to corrupt than the API's simplicity suggests:
 
 - **Two endpoints keyed by different identifier spaces** — films by TMDB *or*
@@ -63,7 +63,7 @@ and there is more to corrupt than the API's simplicity suggests:
 `artworkTypeSlot` is deliberately **one table of data, not a switch**, so a type
 fanart.tv renames or adds is a one-line change. An absent key is ignored rather
 than guessed at: the slot vocabulary is open
-([ADR 0015](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0015-open-and-closed-vocabularies.md)),
+([platform#11](https://github.com/mosaic-media/platform/blob/main/docs/adr/0011-open-and-closed-vocabularies.md)),
 but inventing a mapping is worse than carrying nothing — a disc image rendered as
 a poster is a visible defect nobody reports.
 
@@ -80,7 +80,7 @@ image, so nothing goes red and nobody is told.
 - **`languageOf` maps `"00"` to an empty string.** That empty string is what the
   Platform's selection rule reads as *textless*, and textless is the correct
   backdrop to sit under a hero's clearlogo
-  ([ADR 0074](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0074-artwork-is-a-candidate-set.md)).
+  ([platform#47](https://github.com/mosaic-media/platform/blob/main/docs/adr/0047-artwork-is-a-candidate-set.md)).
   Carried through as a language, every textless image would look foreign-language
   and the preference would never fire. This is the single most visible thing the
   module does.
@@ -125,7 +125,7 @@ Same pattern as `module-tmdb`, same four rules:
   it.** `-X` on an unresolvable path is silently ignored, so a rename ships a
   keyless binary with no error anywhere.
 
-  **This module is why that guard is mandatory** (ADR 0105 rule 3) rather than
+  **This module is why that guard is mandatory** ([supervisor#1](https://github.com/mosaic-media/supervisor/blob/main/docs/adr/0001-supervisor-as-host-manager.md) rule 3) rather than
   an example of the rule. It had the key, the three-state screen, the
   single-reader function and a doc comment stating the whole policy — and the
   comment named `./cmd/mosaic-platform`, a build this module left when the tier
@@ -138,7 +138,7 @@ Same pattern as `module-tmdb`, same four rules:
 When something cannot be expressed, that is a **finding**, not an obstacle to
 work around. **The SDK is where the *shape* of the interaction goes; the Platform
 holds the implementations, and the SDK names no library and depends on nothing**
-([ADR 0135](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0135-the-sdk-carries-no-implementation.md)).
+([sdk#10](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0010-the-sdk-carries-no-implementation.md)).
 Applied to the credential problem below, that rules out the tempting answer: a
 module reaches the Platform's secret facility by *declaring* a settings field
 secret and letting the Platform seal it, never through `Seal`/`Open` primitives
@@ -151,7 +151,7 @@ honest limits or in the code:
 - **`v1.Capability` bundles identity with `Import`.** An enrichment-only module
   has to stub the one write verb it can never perform. Fine for one module; worth
   taking to the SDK if a second appears.
-- **`configureModule` has no merge semantic** ([ADR 0021](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0021-module-settings.md)),
+- **`configureModule` has no merge semantic** ([platform#17](https://github.com/mosaic-media/platform/blob/main/docs/adr/0017-module-settings.md)),
   so every control on the settings screen must echo the credential back through
   the client. `module-tmdb` found this first; **two modules hitting it
   independently is what makes it an SDK item rather than a quirk.**
@@ -181,7 +181,7 @@ The gate also runs a second, tagged pass that links a canary into
 ## Versioning and release
 
 A change is a minor bump, tagged and pushed. **Nothing bumps a `require`
-afterwards**: `platform` does not depend on this module (ADR 0081), so there is
+afterwards**: `platform` does not depend on this module ([platform#51](https://github.com/mosaic-media/platform/blob/main/docs/adr/0051-extension-installation-is-user-initiated-and-persistent.md)), so there is
 no version line anywhere to move. A release reaches people through the
 **catalogue** — `release.yml`'s `binaries` job cross-compiles and signs, and its
 `dispatch` job tells the registry there is a new version to list.
@@ -198,7 +198,7 @@ database are eventually consistent with a just-pushed tag.
 - **Commit author identity** must be `AdamNi-7080 <anicholls41@gmail.com>`.
 - The test container green before pushing.
 - Observability goes through the SDK's ambient `v1.Telemetry`
-  ([ADR 0059](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0059-modules-observe-through-the-sdk.md)),
+  ([sdk#5](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0005-modules-observe-through-the-sdk.md)),
   reached as `TelemetryFrom(ctx)`. Do not print, and do not configure an
   exporter or a sink. The API key is a credential: classify it, never write it
   verbatim.

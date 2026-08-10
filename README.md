@@ -14,12 +14,12 @@ Artwork used to arrive as a by-product of asking a question about *titles*:
 whichever module described the content supplied whatever images it happened to
 carry. Cinemeta has a poster, a background and sometimes a logo. TMDB has more
 and used to discard most of it. Neither has clearart or banners at all — a gap
-[ADR 0034](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0034-rich-metadata-preview.md)
+[sdk#3](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0003-rich-metadata-preview.md)
 recorded as waiting on exactly this kind of source.
 
 This module closes it, and does one thing beyond filling gaps: it returns
 **every** image fanart.tv has, as a candidate set
-([ADR 0074](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0074-artwork-is-a-candidate-set.md)),
+([platform#47](https://github.com/mosaic-media/platform/blob/main/docs/adr/0047-artwork-is-a-candidate-set.md)),
 so the Platform can choose well now and a user can choose differently later.
 
 ## What it is not
@@ -31,7 +31,7 @@ mean.
 
 So it declares no `RoleMetadata`, and that restraint is enforced rather than
 intended: `boundary_test.go` fails if the manifest ever grows the role.
-[ADR 0035](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0035-metadata-as-required-capability.md)
+[platform#23](https://github.com/mosaic-media/platform/blob/main/docs/adr/0023-metadata-as-required-capability.md)
 makes a registered metadata role part of the composition-root check that a
 deployment can identify content, and a module that cannot name a film satisfying
 that check would produce a Mosaic that boots and finds nothing — a failure no
@@ -44,10 +44,10 @@ in a `ContentRef`. This one is never named, because it produces no results.
 
 Instead the Platform runs an **artwork enrichment pass** after materialising a
 work
-([ADR 0075](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0075-the-artwork-provider-role.md)),
+([sdk#6](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0006-the-artwork-provider-role.md)),
 handing every registered artwork provider the work's *shared* external identities
 — the same mechanism
-[ADR 0073](https://github.com/mosaic-media/architecture/blob/main/docs/adr/0073-stream-resolution-is-decoupled-from-metadata-provenance.md)
+[platform#46](https://github.com/mosaic-media/platform/blob/main/docs/adr/0046-stream-resolution-is-decoupled-from-metadata-provenance.md)
 built for stream providers. `Import` exists only because `v1.Capability` requires
 it, and always refuses.
 
@@ -88,7 +88,7 @@ settings document, never rendered, and never logged.
 - **A series needs a TVDB id.** fanart.tv keys television by TVDB id and nothing
   else. `module-tmdb` binds one; `module-cinemeta` binds only `imdb`, so **a
   series imported through Cinemeta gets no artwork from here.** Not fixable in
-  this module, and recorded in ADR 0075 rather than papered over.
+  this module, and recorded in [sdk#6](https://github.com/mosaic-media/sdk/blob/main/docs/adr/0006-the-artwork-provider-role.md) rather than papered over.
 - **Episode stills are not fetched.** A metadata provider returns every episode's
   still in one call; asking here would be a request per episode for data the
   Platform already has. Series and season art only.
@@ -97,7 +97,7 @@ settings document, never rendered, and never logged.
   data so a renamed or added type is a one-line correction. An unrecognised key
   is ignored rather than guessed at, so unverified coverage under-delivers rather
   than mis-delivers — but it is under-delivery until checked.
-- **The settings screen carries the key in its action payloads.** ADR 0021's
+- **The settings screen carries the key in its action payloads.** [platform#17](https://github.com/mosaic-media/platform/blob/main/docs/adr/0017-module-settings.md)'s
   `configureModule` replaces the whole settings document with no merge, so every
   control must echo the credential back. This is the same finding `module-tmdb`
   recorded, reached independently — two modules hitting it is what makes it an

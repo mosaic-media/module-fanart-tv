@@ -15,7 +15,7 @@ import (
 	v1 "github.com/mosaic-media/sdk/contracts/platform/v1"
 )
 
-// The anti-corruption layer (ADR 0051). **Every fanart.tv-ism stops in this
+// The anti-corruption layer (module-stremio-addons#2). **Every fanart.tv-ism stops in this
 // file**, and there are more of them than the API's simplicity suggests:
 //
 //   - Two endpoints keyed by *different* identifier spaces — films by TMDB or
@@ -44,7 +44,7 @@ const requestTimeout = 15 * time.Second
 // textlessLang is what fanart.tv puts in `lang` for an image with no burned-in
 // text. It is not a language code and must not be carried as one — it maps to an
 // empty ArtworkCandidate.Language, which is what marks a backdrop as safe to sit
-// under a clearlogo (ADR 0074).
+// under a clearlogo (platform#47).
 const textlessLang = "00"
 
 // errNoAPIKey is returned when the module has no credential at all — no user key
@@ -72,7 +72,7 @@ type Client struct {
 
 // NewClient builds a client over an HTTP client (nil for a default). The
 // Platform passes its own, which carries the netguard dial guard and the
-// outbound telemetry seam (ADR 0055).
+// outbound telemetry seam (platform#33).
 func NewClient(httpClient *http.Client, apiKey, clientKey string) *Client {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: requestTimeout}
@@ -85,7 +85,7 @@ func NewClient(httpClient *http.Client, apiKey, clientKey string) *Client {
 // **This table is the module's whole vocabulary translation**, kept as data
 // rather than a switch so that a type fanart.tv adds, renames or retires is a
 // one-line change in one place. A key absent from the table is ignored rather
-// than guessed at: the slot vocabulary is open (ADR 0015), but inventing a
+// than guessed at: the slot vocabulary is open (platform#11), but inventing a
 // mapping is worse than carrying nothing, because a disc image rendered as a
 // poster is a visible defect nobody reported.
 //
@@ -178,7 +178,7 @@ func (c *Client) Artwork(ctx context.Context, mediaType v1.MediaType, identities
 	if !ok {
 		// No identity this source speaks. Not an error — being asked about
 		// content it cannot address is the normal case for a provider that did
-		// not source the content (ADR 0075).
+		// not source the content (sdk#6).
 		return nil, nil
 	}
 
@@ -220,7 +220,7 @@ func endpointFor(mediaType v1.MediaType, identities []v1.ExternalIdentity) (stri
 		}
 		// A series with no TVDB id is unreachable here. Cinemeta binds only
 		// `imdb`, so a series imported through it gets no artwork from this
-		// source — a real limit, recorded in ADR 0075 rather than papered over
+		// source — a real limit, recorded in sdk#6 rather than papered over
 		// by guessing at a lookup this module cannot perform.
 		return "", false
 	}
@@ -343,7 +343,7 @@ func candidatesFrom(raw map[string]json.RawMessage) []v1.ArtworkCandidate {
 //
 // "00" is fanart.tv's marker for an image with no text on it, not a language.
 // Mapping it to an empty string is what lets the Platform's selection rule
-// prefer a textless backdrop (ADR 0074) — carrying "00" through as if it were a
+// prefer a textless backdrop (platform#47) — carrying "00" through as if it were a
 // language would make every textless image look like a foreign-language one.
 func languageOf(lang string) string {
 	lang = strings.TrimSpace(lang)

@@ -1,6 +1,6 @@
 // Package fanarttv is Mosaic's fanart.tv artwork module.
 //
-// It fills one content role — [v1.RoleArtwork] (ADR 0075) — plus its own
+// It fills one content role — [v1.RoleArtwork] (sdk#6) — plus its own
 // settings screen, and what it does *not* do is the shape of it.
 //
 // # It illustrates content; it does not identify it
@@ -12,7 +12,7 @@
 // others.
 //
 // That is why it declares no [v1.RoleMetadata], and the temptation to is the
-// specific mistake ADR 0075 exists to prevent. ADR 0035 makes a registered
+// specific mistake sdk#6 exists to prevent. platform#23 makes a registered
 // metadata role part of the composition-root check that a deployment can
 // identify content; a module that cannot name a film satisfying that check would
 // produce a Mosaic that boots and finds nothing. `boundary_test.go` asserts the
@@ -23,8 +23,8 @@
 // Every other source module is invoked because a search or catalog result named
 // it in a [v1.ContentRef]. This one is never named, because it produces no
 // results. The Platform reaches it through the artwork enrichment pass it runs
-// after materialising a work (ADR 0075), addressing it by the work's *shared*
-// external identity — the same mechanism ADR 0073 built for stream providers.
+// after materialising a work (sdk#6), addressing it by the work's *shared*
+// external identity — the same mechanism platform#46 built for stream providers.
 //
 // [Capability.Import] therefore exists only because [v1.Capability] requires it,
 // and always refuses.
@@ -33,7 +33,7 @@
 //
 // The module ranks nothing and chooses nothing. It returns every image
 // fanart.tv has as [v1.ArtworkCandidate]s carrying language and the source's own
-// like count, and the Platform's selection rule (ADR 0074) resolves which one
+// like count, and the Platform's selection rule (platform#47) resolves which one
 // fills a slot — because that choice is ultimately a user's, and a module cannot
 // hold it.
 //
@@ -53,7 +53,7 @@
 //   - **A series needs a TVDB id.** fanart.tv keys television by TVDB id and
 //     nothing else. `module-tmdb` binds one; `module-cinemeta` binds only `imdb`,
 //     so a series imported through Cinemeta gets no artwork from here. Recorded in
-//     ADR 0075 rather than papered over — it is not fixable in this module.
+//     sdk#6 rather than papered over — it is not fixable in this module.
 //   - **Episode stills are not fetched.** A metadata provider already returns
 //     every episode's still in one call; asking here would be a request per
 //     episode for data the Platform has in bulk. Series and season art only.

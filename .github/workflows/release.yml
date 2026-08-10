@@ -103,9 +103,9 @@ jobs:
           GOPROXY: https://proxy.golang.org,direct
           GOFLAGS: -mod=mod
 
-  # ADR 0081 took this module out of the Platform binary. Nothing requires it in
+  # platform#51 took this module out of the Platform binary. Nothing requires it in
   # platform's go.mod any more; a Platform gains it when a *user* installs it,
-  # from the signed index the official registry publishes (ADR 0065, ADR 0079).
+  # from the signed index the official registry publishes (platform#40, platform#49).
   # A release therefore reaches people through the **catalogue**, not through a
   # go.mod bump, and this dispatch is what tells the registry there is a newer
   # version to catalogue — the last hand-done step between a tag and an
@@ -178,9 +178,9 @@ jobs:
       # binary is cmd/module-fanart-tv, whose whole body is host.Serve.
       #
       # **The fanart.tv project key is linked in here, and here is the only
-      # place it can be** (ADR 0105 rule 2). A core module's key is applied by
+      # place it can be** (supervisor#1 rule 2). A core module's key is applied by
       # `platform`'s release workflow, because that is the workflow that links
-      # the binary carrying it; ADR 0081 took this module out of that binary, so
+      # the binary carrying it; platform#51 took this module out of that binary, so
       # the artefact that ships this key is the one cross-compiled below and
       # `FANART_PROJECT_KEY` belongs in *this* repository's secrets. The code documented
       # this policy from the start and named `./cmd/mosaic-platform` as its

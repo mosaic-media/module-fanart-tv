@@ -15,9 +15,9 @@ import "testing"
 //
 // **This module is the reason the rule exists rather than an application of
 // it.** Its `defaultAPIKey` carried the whole policy in a doc comment naming
-// `./cmd/mosaic-platform` as the build path; ADR 0081 took this module out of
+// `./cmd/mosaic-platform` as the build path; platform#51 took this module out of
 // that binary, no workflow ever injected the key, and there was no guard here —
-// so every released binary shipped an empty one and nothing went red. ADR 0105
+// so every released binary shipped an empty one and nothing went red. supervisor#1
 // rule 3 makes the guard mandatory for exactly this reason.
 //
 // The container gate runs the suite twice: once normally, and once as
@@ -29,7 +29,7 @@ import "testing"
 // so the symbol path in the release build is verified by the same string that
 // appears in this repository's own gate. The path is spelled once more in
 // `.github/workflows/release.yml`'s `binaries` job, which is the build that
-// actually ships it — an extension module links its own key (ADR 0105 rule 2),
+// actually ships it — an extension module links its own key (supervisor#1 rule 2),
 // because its binaries are cross-compiled here and distributed through the
 // signed registry rather than compiled into the Platform.
 func TestLinkerInjectionPathResolves(t *testing.T) {
@@ -50,7 +50,7 @@ func TestLinkerInjectionPathResolves(t *testing.T) {
 	}
 
 	// And the settings screen can tell which is in use, which is what makes
-	// ADR 0105 rule 6's middle state ("the project key is in use") reachable.
+	// supervisor#1 rule 6's middle state ("the project key is in use") reachable.
 	if !usingBundledKey(Settings{}) {
 		t.Fatal("usingBundledKey with a linked-in key and no user key = false, want true")
 	}

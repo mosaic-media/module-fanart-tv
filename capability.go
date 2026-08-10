@@ -14,7 +14,7 @@ import (
 const (
 	// CapabilityID is the id the Platform registers this module under and the id
 	// stamped onto every candidate it supplies, so a set assembled from several
-	// providers stays attributable (ADR 0074).
+	// providers stays attributable (platform#47).
 	//
 	// Unlike every module before it, this id never appears in a ContentRef: this
 	// module sources nothing, so nothing ever routes an import back to it.
@@ -37,12 +37,12 @@ var moduleVersion = v1.ModuleVersion(modulePath)
 //
 // **The command is this module's, not the Platform's, and that is the whole
 // correction.** This comment named `./cmd/mosaic-platform` from the day it was
-// written, which was true of a core module and never true of this one: ADR 0081
+// written, which was true of a core module and never true of this one: platform#51
 // took the extension tier out of that binary, so the only build that can apply
 // a `-X` here is the cross-compile in this repository's `release.yml`
-// (ADR 0105 rule 2). Nothing injected the key for the whole life of that
+// (supervisor#1 rule 2). Nothing injected the key for the whole life of that
 // comment, every released binary shipped an empty one, and enrichment answered
-// "API key not set" — which is what ADR 0105 rule 3's mandatory guard is for.
+// "API key not set" — which is what supervisor#1 rule 3's mandatory guard is for.
 // linkercheck_test.go is that guard.
 //
 // **It is not a secret once the binary ships, and nothing here pretends
@@ -62,7 +62,7 @@ var defaultAPIKey string
 
 // Capability satisfies the SDK's capability contract and the roles it declares.
 // The assertions fail to compile if the module drifts from what the Platform
-// invokes or from a role it claims to fill (ADR 0027).
+// invokes or from a role it claims to fill (sdk#2).
 var (
 	_ v1.Capability         = (*Capability)(nil)
 	_ v1.ArtworkProvider    = (*Capability)(nil)
@@ -76,14 +76,14 @@ var (
 // has no titles, no overviews, no years, no cast, no search and no catalogs;
 // there is no query that turns "Blade Runner" into a result here, because you
 // must already know which film you mean. It cannot describe content and must
-// never claim it can (ADR 0075).
+// never claim it can (sdk#6).
 type Capability struct {
 	http *http.Client
 }
 
 // New builds the capability over an HTTP client (nil for a default). The
 // Platform passes its own, which carries the netguard dial guard and the
-// outbound telemetry seam (ADR 0055).
+// outbound telemetry seam (platform#33).
 //
 // The client is built per invocation rather than here, because the credential
 // comes from the settings document the Platform hands in on each call and a user
@@ -93,11 +93,11 @@ func New(httpClient *http.Client) *Capability {
 }
 
 // Manifest is the module's self-declaration, including the provider roles it
-// fills (ADR 0027).
+// fills (sdk#2).
 //
 // **The roles it does not declare matter more than the ones it does.** It does
 // not declare RoleMetadata, and the temptation to is the specific mistake ADR
-// 0075 exists to prevent: ADR 0035 makes a registered RoleMetadata part of the
+// 0075 exists to prevent: platform#23 makes a registered RoleMetadata part of the
 // composition-root check that Mosaic can identify content, and a module that
 // cannot name a film has no business satisfying it. Declaring the role to reach
 // ContentMetadata's image fields would produce a deployment that boots and
@@ -137,7 +137,7 @@ func (c *Capability) Import(ctx context.Context, svc v1.ContentService, req v1.I
 }
 
 // Artwork resolves artwork candidates for content this module did not source
-// (RoleArtwork, ADR 0075).
+// (RoleArtwork, sdk#6).
 //
 // It returns an empty response and no error when it cannot address the content —
 // a film with neither a TMDB nor an IMDb id, a series with no TVDB id, or a
@@ -164,7 +164,7 @@ func (c *Capability) Artwork(ctx context.Context, req v1.ArtworkRequest) (v1.Art
 	return v1.ArtworkResponse{Candidates: candidates}, nil
 }
 
-// Settings is this module's user-managed configuration (ADR 0021).
+// Settings is this module's user-managed configuration (platform#17).
 //
 // The Platform stores it uninterpreted and hands it back on every invocation;
 // what the fields mean is this module's business.
@@ -203,7 +203,7 @@ func decodeSettings(raw []byte) (Settings, error) {
 // resolveKeys picks the credentials for one invocation: the user's key when
 // they have set one, otherwise the key linked into the binary.
 //
-// **This is the only function in the module that reads defaultAPIKey** (ADR 0105
+// **This is the only function in the module that reads defaultAPIKey** (supervisor#1
 // rule 4). The linker guard reads it too, and that is the deliberate exception:
 // it is a build-tagged test whose whole job is to prove the symbol path still
 // resolves, and it ships in no binary. Keeping it that way is what makes "never

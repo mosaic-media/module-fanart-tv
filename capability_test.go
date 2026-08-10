@@ -126,7 +126,7 @@ func TestFilmFallsBackToIMDbID(t *testing.T) {
 	}
 }
 
-// TestSeriesRequiresATVDBID is the limit ADR 0075 records rather than papers
+// TestSeriesRequiresATVDBID is the limit sdk#6 records rather than papers
 // over. fanart.tv keys television by TVDB id and only by TVDB id, so a series
 // carrying just an IMDb id — which is every series Cinemeta imports — cannot be
 // looked up here at all.
@@ -286,7 +286,7 @@ func TestSeriesLevelRequestExcludesSeasonArtwork(t *testing.T) {
 	}
 }
 
-// TestUnknownArtworkTypesAreIgnored covers the open vocabulary (ADR 0015). A
+// TestUnknownArtworkTypesAreIgnored covers the open vocabulary (platform#11). A
 // type this build has never heard of must not be guessed at — a disc image
 // rendered as a poster is a visible defect nobody reported — and it must not
 // fail the response either, which would lose every other type with it.
@@ -414,7 +414,7 @@ func TestSettingsUIRenders(t *testing.T) {
 		t.Fatal("SettingsUI returned no screen")
 	}
 	// The stored key must never be rendered into the screen's visible text. It
-	// still travels inside the configureModule action payloads — ADR 0021's
+	// still travels inside the configureModule action payloads — platform#17's
 	// replace-semantics gap, recorded in configureInput — but nothing should
 	// draw it.
 	var tree map[string]any

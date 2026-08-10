@@ -13,9 +13,9 @@ import (
 // TestModuleImportsOnlyPublishedContracts is the module boundary made
 // executable: this module must use only the published *contract* modules — the
 // SDK, and the shared SDUI contract it authors its settings screen with
-// (ADR 0038) — plus the standard library.
+// (sdk#4) — plus the standard library.
 //
-// This is an **extension** module (ADR 0062): nothing about Mosaic breaks
+// This is an **extension** module (platform#3): nothing about Mosaic breaks
 // without it, artwork simply stays as good as the metadata source made it. That
 // makes the boundary an ecosystem claim rather than a build-safety one — this is
 // the shape a third party's module takes, written against nothing but the
@@ -58,7 +58,7 @@ func TestModuleImportsOnlyPublishedContracts(t *testing.T) {
 				// The published SDK — the primary contract a module builds against.
 			case strings.HasPrefix(path, sduiPrefix):
 				// The shared SDUI contract — a module builds its own settings UI
-				// with the producer binding (ADR 0038, contracts#3).
+				// with the producer binding (sdk#4, contracts#3).
 			case strings.HasPrefix(path, platformPrefix):
 				t.Errorf("%s imports private Platform package %q; a module may import only the SDK", name, path)
 			default:
@@ -73,9 +73,9 @@ func TestModuleImportsOnlyPublishedContracts(t *testing.T) {
 }
 
 // TestManifestDeclaresNoMetadataRole is the one boundary specific to this module,
-// and it guards the mistake ADR 0075 exists to prevent.
+// and it guards the mistake sdk#6 exists to prevent.
 //
-// ADR 0035 makes a registered RoleMetadata part of the composition-root check
+// platform#23 makes a registered RoleMetadata part of the composition-root check
 // that a deployment can identify content. This module cannot name a film — it
 // has no titles, no search and no catalogs — so declaring the role to reach
 // ContentMetadata's image fields would satisfy that check with a module
@@ -85,7 +85,7 @@ func TestModuleImportsOnlyPublishedContracts(t *testing.T) {
 // So it is asserted here, where it *is* a red test.
 func TestManifestDeclaresNoMetadataRole(t *testing.T) {
 	forbidden := map[string]string{
-		"metadata": "this module cannot describe content; declaring it would satisfy ADR 0035's composition check falsely",
+		"metadata": "this module cannot describe content; declaring it would satisfy platform#23's composition check falsely",
 		"search":   "this module cannot be searched — you must already know which title you mean",
 		"catalog":  "this module has no collections to browse",
 		"stream":   "this module supplies artwork, never playable locations",
