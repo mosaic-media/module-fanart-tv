@@ -83,7 +83,7 @@ func apiKeySection(s Settings) *ui.Element {
 	// A form: the field writes `apiKey` into the form's scope and submit merges
 	// the scope into the settings document the invoke carries. The rest of the
 	// document travels in the action, so only what was typed comes from the
-	// scope (contracts#12). This replaces the "$value" substitution.
+	// scope (contracts#20). This replaces the "$value" substitution.
 	keep := s
 	keep.APIKey = ""
 	field := ui.Form(
