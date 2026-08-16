@@ -11,16 +11,15 @@ import (
 )
 
 // TestModuleImportsOnlyPublishedContracts is the module boundary made
-// executable: this module must use only the published *contract* modules — the
+// executable: this module must use only the published contract modules — the
 // SDK, and the shared SDUI contract it authors its settings screen with
 // (sdk#4) — plus the standard library.
 //
-// This is an **extension** module (architecture#3): nothing about Mosaic breaks
+// This is an extension module (architecture#3): nothing about Mosaic breaks
 // without it, artwork simply stays as good as the metadata source made it. That
 // makes the boundary an ecosystem claim rather than a build-safety one — this is
 // the shape a third party's module takes, written against nothing but the
-// published surface, and it is the first module in the build that is genuinely
-// optional rather than core under the guarantee clause.
+// published surface, so the rule is held harder here rather than relaxed.
 func TestModuleImportsOnlyPublishedContracts(t *testing.T) {
 	const (
 		sdkPrefix      = "github.com/mosaic-media/sdk/"
@@ -82,7 +81,8 @@ func TestModuleImportsOnlyPublishedContracts(t *testing.T) {
 // structurally incapable of meeting it. The failure would not be a red test or a
 // compile error; it would be a deployment that boots and cannot find anything.
 //
-// So it is asserted here, where it *is* a red test.
+// So it is asserted here, where it is a red test. Keep search, catalog and
+// stream in the forbidden list for the same reason.
 func TestManifestDeclaresNoMetadataRole(t *testing.T) {
 	forbidden := map[string]string{
 		"metadata": "this module cannot describe content; declaring it would satisfy platform#23's composition check falsely",

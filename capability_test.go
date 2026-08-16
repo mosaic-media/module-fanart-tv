@@ -13,11 +13,11 @@ import (
 	v1 "github.com/mosaic-media/sdk/contracts/platform/v1"
 )
 
-// The tests are **hermetic**: a fake fanart.tv over httptest, reached by
-// rewriting the request host through the injected http.Client. There is no
-// fanart.tv key CI could hold that is not somebody's, and the API base URL is a
-// constant on purpose — adding a settable field so tests could point elsewhere
-// would put a seam in the production type that only tests use.
+// The tests are hermetic: a fake fanart.tv over httptest, reached by rewriting
+// the request host through the injected http.Client. Keep them that way. There
+// is no fanart.tv key CI could hold that is not somebody's, and the API base URL
+// is a constant on purpose — adding a settable field so tests could point
+// elsewhere would put a seam in the production type that only tests use.
 
 // rewriteHost sends every request to the fake regardless of the host the module
 // built, which is what lets apiBaseURL stay a constant.
@@ -167,7 +167,7 @@ func TestSeriesIsAddressedByTVDBID(t *testing.T) {
 
 // TestTextlessArtworkLosesItsLanguage is the mapping that makes the Platform's
 // selection rule work. fanart.tv marks an image with no burned-in text as
-// `lang: "00"`, which is not a language — carrying it through as one would make
+// lang: "00", which is not a language — carrying it through as one would make
 // every textless backdrop look foreign-language, and the Platform would stop
 // preferring exactly the images that belong under a clearlogo.
 func TestTextlessArtworkLosesItsLanguage(t *testing.T) {

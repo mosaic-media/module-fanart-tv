@@ -15,15 +15,15 @@ import (
 	v1 "github.com/mosaic-media/sdk/contracts/platform/v1"
 )
 
-// The anti-corruption layer (module-stremio-addons#2). **Every fanart.tv-ism stops in this
-// file**, and there are more of them than the API's simplicity suggests:
+// The anti-corruption layer (module-stremio-addons#2). Every fanart.tv-ism stops
+// in this file, and there are more of them than the API's simplicity suggests:
 //
-//   - Two endpoints keyed by *different* identifier spaces — films by TMDB or
+//   - Two endpoints keyed by different identifier spaces — films by TMDB or
 //     IMDb id, television by TVDB id and nothing else.
-//   - A response that is a flat object whose *keys are the artwork types*, so
-//     the type vocabulary is the schema rather than a field within it.
-//   - Numbers as strings: `likes` and `season` both arrive quoted.
-//   - `lang: "00"` meaning *textless*, which is not a language and is frequently
+//   - A response that is a flat object whose keys are the artwork types, so the
+//     type vocabulary is the schema rather than a field within it.
+//   - Numbers as strings: likes and season both arrive quoted.
+//   - lang: "00" meaning textless, which is not a language and is frequently
 //     the best answer.
 //
 // Nothing above this file sees any of it. The Platform must never learn that a
@@ -41,7 +41,7 @@ const apiBaseURL = "https://webservice.fanart.tv/v3"
 // optional improvement into a broken feature.
 const requestTimeout = 15 * time.Second
 
-// textlessLang is what fanart.tv puts in `lang` for an image with no burned-in
+// textlessLang is what fanart.tv puts in lang for an image with no burned-in
 // text. It is not a language code and must not be carried as one — it maps to an
 // empty ArtworkCandidate.Language, which is what marks a backdrop as safe to sit
 // under a clearlogo (platform#47).
@@ -53,7 +53,7 @@ const textlessLang = "00"
 var errNoAPIKey = errors.New("fanart.tv API key not set — add one in Settings › fanart.tv (the module cannot read anything without it)")
 
 // errCredentialRejected is returned when fanart.tv refuses the credential that
-// *was* sent. Deliberately distinct from errNoAPIKey: reporting a revoked key as
+// was sent. Deliberately distinct from errNoAPIKey: reporting a revoked key as
 // "not set" sends a user to look at a field that is not empty, and with a
 // bundled key in play it is actively misleading — the user has set nothing and
 // has nothing to fix.
@@ -82,16 +82,16 @@ func NewClient(httpClient *http.Client, apiKey, clientKey string) *Client {
 
 // artworkTypeSlot maps one fanart.tv response key to the SDK slot it fills.
 //
-// **This table is the module's whole vocabulary translation**, kept as data
-// rather than a switch so that a type fanart.tv adds, renames or retires is a
-// one-line change in one place. A key absent from the table is ignored rather
-// than guessed at: the slot vocabulary is open (platform#11), but inventing a
-// mapping is worse than carrying nothing, because a disc image rendered as a
-// poster is a visible defect nobody reported.
+// It is the module's whole vocabulary translation, kept as data rather than a
+// switch so that a type fanart.tv adds, renames or retires is a one-line change
+// in one place. A key absent from the table is ignored rather than guessed at:
+// the slot vocabulary is open (platform#11), but inventing a mapping is worse
+// than carrying nothing, because a disc image rendered as a poster is a visible
+// defect nobody reports.
 //
-// The `hd*` variants are listed alongside their standard-definition twins and
-// map to the same slot. They are genuinely the same kind of image at a different
-// resolution, and rankPreference below is what prefers the better one.
+// The hd* variants are listed alongside their standard-definition twins and map
+// to the same slot. They are genuinely the same kind of image at a different
+// resolution, and rankOf below is what prefers the better one.
 var artworkTypeSlot = map[string]v1.ArtworkSlot{
 	// Films.
 	"movieposter":     v1.ArtworkPoster,
@@ -113,7 +113,7 @@ var artworkTypeSlot = map[string]v1.ArtworkSlot{
 	"clearart":       v1.ArtworkClearArt,
 	"tvbanner":       v1.ArtworkBanner,
 	"characterart":   v1.ArtworkCharacterArt,
-	// Television, per season. These carry a `season` field and are filtered to
+	// Television, per season. These carry a season field and are filtered to
 	// the requested season rather than landing on the series.
 	"seasonposter": v1.ArtworkPoster,
 	"seasonthumb":  v1.ArtworkLandscape,
@@ -131,7 +131,7 @@ var seasonScopedTypes = map[string]bool{
 
 // hdTypes are the response keys naming a high-definition variant. An image from
 // one of these outranks the standard-definition twin that maps to the same slot,
-// which is the only ranking fanart.tv's own data does not express: `likes` are
+// which is the only ranking fanart.tv's own data does not express: likes are
 // counted per image, and an older SD logo frequently has more of them than the
 // HD one that replaced it.
 var hdTypes = map[string]bool{
@@ -152,7 +152,7 @@ const hdRankBonus = 1000
 // Every numeric field arrives as a string, which is why they are typed as
 // strings here and converted on the way out. Decoding them as numbers fails the
 // whole response on one badly-typed entry, and losing a title's entire artwork
-// because one image had an odd `likes` value is not a trade worth making.
+// because one image had an odd likes value is not a trade worth making.
 type image struct {
 	ID     string `json:"id"`
 	URL    string `json:"url"`
@@ -165,10 +165,10 @@ type image struct {
 // itself (season 0) or to one of its seasons.
 //
 // The response is decoded into a map keyed by artwork type rather than a struct,
-// because the type vocabulary *is* the schema: fanart.tv adds types over time,
-// and a struct would silently drop the ones this build predates. The identity
-// fields (`name`, `tmdb_id`, …) decode as something that is not an array and are
-// skipped by the decoder.
+// because the type vocabulary is the schema: fanart.tv adds types over time, and
+// a struct would silently drop the ones this build predates. The identity fields
+// (name, tmdb_id, …) decode as something that is not an array and are skipped by
+// the decoder.
 func (c *Client) Artwork(ctx context.Context, mediaType v1.MediaType, identities []v1.ExternalIdentity, season int) ([]v1.ArtworkCandidate, error) {
 	if c.apiKey == "" {
 		return nil, errNoAPIKey
@@ -201,11 +201,11 @@ func (c *Client) Artwork(ctx context.Context, mediaType v1.MediaType, identities
 
 // endpointFor picks the endpoint and identifier for a title.
 //
-// **This is the module's business and the Platform must never learn it.**
-// fanart.tv keys television by TVDB id and *only* by TVDB id, while a film can
-// be addressed by either TMDB or IMDb id. That asymmetry is why the whole
-// identity set is handed over at once rather than one at a time: which id is
-// usable depends on what is being asked about.
+// This is the module's business and the Platform must never learn it. fanart.tv
+// keys television by TVDB id and only by TVDB id, while a film can be addressed
+// by either TMDB or IMDb id. That asymmetry is why the whole identity set is
+// handed over at once rather than one at a time: which id is usable depends on
+// what is being asked about.
 func endpointFor(mediaType v1.MediaType, identities []v1.ExternalIdentity) (string, bool) {
 	byScheme := make(map[string]string, len(identities))
 	for _, identity := range identities {
@@ -219,7 +219,7 @@ func endpointFor(mediaType v1.MediaType, identities []v1.ExternalIdentity) (stri
 			return "/tv/" + url.PathEscape(id), true
 		}
 		// A series with no TVDB id is unreachable here. Cinemeta binds only
-		// `imdb`, so a series imported through it gets no artwork from this
+		// imdb, so a series imported through it gets no artwork from this
 		// source — a real limit, recorded in sdk#6 rather than papered over
 		// by guessing at a lookup this module cannot perform.
 		return "", false
@@ -239,8 +239,8 @@ func endpointFor(mediaType v1.MediaType, identities []v1.ExternalIdentity) (stri
 // isSeries reports whether a media type is episodic, and therefore addressed by
 // fanart.tv's television endpoint.
 //
-// It matches on a substring because the media vocabulary is open text (ADR
-// 0015): "series", "anime_series" and a type this build has never seen all
+// It matches on a substring because the media vocabulary is open text
+// (platform#11): "series", "anime_series" and a type this build has never seen all
 // describe something with seasons, and an exact-match list would send a new
 // episodic type to the film endpoint where every lookup would miss.
 func isSeries(mediaType v1.MediaType) bool {
@@ -290,10 +290,13 @@ func (c *Client) get(ctx context.Context, path string) (map[string]json.RawMessa
 	return raw, nil
 }
 
-// candidatesFrom turns one response into SDK candidates, best-first.
+// candidatesFrom turns one response into SDK candidates.
 //
-// Season-scoped entries are carried with their season number attached so the
-// caller can route them; see splitBySeason.
+// The order is by artwork-type key and then response order, not by Rank —
+// nothing here ranks, because choosing between candidates is the Platform's
+// (platform#47). Season routing happens before this: seasonCandidates and
+// seriesCandidates each filter the response, so a season-scoped entry never
+// reaches here.
 func candidatesFrom(raw map[string]json.RawMessage) []v1.ArtworkCandidate {
 	var out []v1.ArtworkCandidate
 
@@ -308,7 +311,7 @@ func candidatesFrom(raw map[string]json.RawMessage) []v1.ArtworkCandidate {
 	for _, name := range types {
 		slot, known := artworkTypeSlot[name]
 		if !known {
-			// Either an identity field (`name`, `tmdb_id`) or an artwork type
+			// Either an identity field (name, tmdb_id) or an artwork type
 			// this build does not know. Both are correctly ignored.
 			continue
 		}

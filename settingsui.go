@@ -41,20 +41,18 @@ func (c *Capability) SettingsUI(ctx context.Context, req v1.SettingsUIRequest) (
 // the Platform persists. Controls mutate a copy and pass it here, so a change to
 // one field never silently drops the other.
 //
-// **The whole document, including both keys, is what a control has to carry, and
-// that is platform#17's gap rather than a choice made here.** configureModule
-// *replaces* the stored document; there is no partial update. So a module with a
-// secret setting must echo that secret back through the client on every control
-// that changes anything else, or setting the personal key would erase the
-// project key. The credential therefore appears inside this screen's action
-// payloads — reaching only an admin holding `module.configure`, but bypassing
-// the Platform's redaction classes (platform#34), which cannot see inside a
-// module's opaque settings document.
+// The whole document, including both keys, is what a control has to carry, and
+// that is platform#17's gap rather than a choice made here: configureModule
+// replaces the stored document, and there is no partial update. So a module with
+// a secret setting must echo that secret back through the client on every
+// control that changes anything else, or setting the personal key would erase
+// the project key. The credential therefore appears inside this screen's action
+// payloads — reaching only an admin holding module.configure, but bypassing the
+// Platform's redaction classes (platform#34), which cannot see inside a module's
+// opaque settings document.
 //
-// This is the same finding `module-tmdb` recorded, reached independently by the
-// second module that has a credential. Two modules hitting one gap is what turns
-// it from a quirk into an SDK item: configureModule needs either a merge
-// semantic or a write-only field.
+// module-tmdb records the same finding. Closing it needs either a merge semantic
+// or a write-only field in configureModule.
 func configureInput(s Settings) map[string]any {
 	return map[string]any{
 		"moduleId": CapabilityID,
@@ -80,10 +78,10 @@ func whatItDoesSection() *ui.Element {
 // field to set or replace it, and — only when there is one — a control to clear
 // it.
 func apiKeySection(s Settings) *ui.Element {
-	// A form: the field writes `apiKey` into the form's scope and submit merges
+	// A form: the field writes apiKey into the form's scope and submit merges
 	// the scope into the settings document the invoke carries. The rest of the
 	// document travels in the action, so only what was typed comes from the
-	// scope (contracts#20). This replaces the "$value" substitution.
+	// scope (contracts#20).
 	keep := s
 	keep.APIKey = ""
 	field := ui.Form(
@@ -95,9 +93,9 @@ func apiKeySection(s Settings) *ui.Element {
 			ui.Prop("placeholder", "Paste your fanart.tv project API key…"),
 			ui.Prop("validators", map[string]any{"required": true})))
 
-	// Three states, and the middle one is why this is not a one-liner: a user
-	// with no key of their own may still have working artwork, and a screen
-	// showing an empty field would read as broken.
+	// Three states. The middle one is the reason for them: a user with no key of
+	// their own may still have working artwork, and a screen showing nothing but
+	// an empty field would read as broken.
 	if s.APIKey == "" {
 		if !usingBundledKey(s) {
 			return ui.Section("Project key",
@@ -131,9 +129,8 @@ func apiKeySection(s Settings) *ui.Element {
 //
 // It is a separate section rather than a second row above because it does a
 // different job: the project key decides whether the module works at all, this
-// one decides how *fresh* the artwork is. Folding them together would suggest
-// both are required, and a user who supplies neither is in a perfectly good
-// state.
+// one decides how fresh the artwork is. Folding them together would suggest both
+// are required, and a user who supplies neither is in a perfectly good state.
 func clientKeySection(s Settings) *ui.Element {
 	keep := s
 	keep.ClientKey = ""

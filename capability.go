@@ -16,8 +16,8 @@ const (
 	// stamped onto every candidate it supplies, so a set assembled from several
 	// providers stays attributable (platform#47).
 	//
-	// Unlike every module before it, this id never appears in a ContentRef: this
-	// module sources nothing, so nothing ever routes an import back to it.
+	// It never appears in a ContentRef: this module sources nothing, so nothing
+	// ever routes an import back to it.
 	CapabilityID = "fanart-tv"
 	// modulePath is this module's import path, which is how it reads its own
 	// version out of the build graph rather than carrying a constant nothing
@@ -31,33 +31,28 @@ var moduleVersion = v1.ModuleVersion(modulePath)
 
 // defaultAPIKey is a fanart.tv project key linked into the binary at build time,
 // so a deployment has working artwork before anyone configures anything. It is
-// empty in an ordinary `go build`; this module's own release build sets it:
+// empty in an ordinary go build; this module's own release build sets it:
 //
 //	go build -ldflags "-X github.com/mosaic-media/module-fanart-tv.defaultAPIKey=$FANART_PROJECT_KEY" ./cmd/module-fanart-tv
 //
-// **The command is this module's, not the Platform's, and that is the whole
-// correction.** This comment named `./cmd/mosaic-platform` from the day it was
-// written, which was true of a core module and never true of this one: platform#51
-// took the extension tier out of that binary, so the only build that can apply
-// a `-X` here is the cross-compile in this repository's `release.yml`
-// (architecture#4 rule 2). Nothing injected the key for the whole life of that
-// comment, every released binary shipped an empty one, and enrichment answered
-// "API key not set" — which is what architecture#4 rule 3's mandatory guard is for.
-// linkercheck_test.go is that guard.
+// The build path is this module's own, not the Platform's. platform#51 puts the
+// extension tier outside the Platform binary, so the only build that can apply
+// a -X here is the cross-compile in this repository's release.yml
+// (architecture#4 rule 2). linkercheck_test.go is architecture#4 rule 3's
+// mandatory guard on that path.
 //
-// **It is not a secret once the binary ships, and nothing here pretends
-// otherwise.** A string linked into a distributed binary is recoverable with
-// `strings`, so this is a *shared* credential whose exposure is accepted rather
-// than a hidden one. What makes that acceptable is what it can do: it is
-// read-only, it reaches only fanart.tv's public artwork index, and it is
-// revocable centrally if abused. What it costs is a shared rate limit across
-// every deployment that has not set its own — which is why a user can override
-// it, and why the settings screen says plainly which one is in use.
+// It is not a secret once the binary ships. A string linked into a distributed
+// binary is recoverable with strings, so this is a shared credential whose
+// exposure is accepted rather than a hidden one. What makes that acceptable is
+// what it can do: it is read-only, it reaches only fanart.tv's public artwork
+// index, and it is revocable centrally if abused. What it costs is a shared
+// rate limit across every deployment that has not set its own — which is why a
+// user can override it, and why the settings screen says plainly which one is
+// in use.
 //
 // It is never written into the settings document, never rendered, and never
 // logged. resolveKeys is the only function in the module that reads it, the
-// build-tagged guard above being the one exception; keeping it that way is what
-// makes those three claims verifiable by reading rather than by trust.
+// build-tagged guard being the one exception.
 var defaultAPIKey string
 
 // Capability satisfies the SDK's capability contract and the roles it declares.
@@ -69,14 +64,12 @@ var (
 	_ v1.SettingsUIProvider = (*Capability)(nil)
 )
 
-// Capability is the fanart.tv artwork module.
+// Capability is the fanart.tv artwork module: RoleArtwork plus its own settings
+// screen, and nothing else.
 //
-// It fills exactly one content role — RoleArtwork — plus its own settings
-// screen, and the roles it does *not* fill are the whole shape of it. fanart.tv
-// has no titles, no overviews, no years, no cast, no search and no catalogs;
-// there is no query that turns "Blade Runner" into a result here, because you
-// must already know which film you mean. It cannot describe content and must
-// never claim it can (sdk#6).
+// It cannot describe or find content — fanart.tv has no titles, no overviews,
+// no years, no cast, no search and no catalogs — and it must never claim it can
+// (sdk#6).
 type Capability struct {
 	http *http.Client
 }
@@ -85,9 +78,9 @@ type Capability struct {
 // Platform passes its own, which carries the netguard dial guard and the
 // outbound telemetry seam (platform#33).
 //
-// The client is built per invocation rather than here, because the credential
-// comes from the settings document the Platform hands in on each call and a user
-// may change it between two of them.
+// The fanart.tv client is built per invocation rather than here, because the
+// credential comes from the settings document the Platform hands in on each
+// call and a user may change it between two of them.
 func New(httpClient *http.Client) *Capability {
 	return &Capability{http: httpClient}
 }
@@ -95,13 +88,13 @@ func New(httpClient *http.Client) *Capability {
 // Manifest is the module's self-declaration, including the provider roles it
 // fills (sdk#2).
 //
-// **The roles it does not declare matter more than the ones it does.** It does
-// not declare RoleMetadata, and the temptation to is the specific mistake ADR
-// 0075 exists to prevent: platform#23 makes a registered RoleMetadata part of the
-// composition-root check that Mosaic can identify content, and a module that
-// cannot name a film has no business satisfying it. Declaring the role to reach
-// ContentMetadata's image fields would produce a deployment that boots and
-// cannot identify anything — a failure no test would catch.
+// The roles it does not declare matter more than the ones it does. It does
+// not declare RoleMetadata, and the temptation to is the specific mistake
+// sdk#6 exists to prevent: platform#23 makes a registered RoleMetadata part of
+// the composition-root check that Mosaic can identify content, and a module
+// that cannot name a film has no business satisfying it. Declaring the role to
+// reach ContentMetadata's image fields would produce a deployment that boots
+// and cannot identify anything — a failure no test would catch.
 func (c *Capability) Manifest() v1.Manifest {
 	return v1.Manifest{
 		ID:      CapabilityID,
@@ -128,10 +121,11 @@ var errCannotImport = errors.New("fanart.tv supplies artwork for content another
 // "I materialised nothing, and that is fine", which would let a bug that routed
 // an import here pass silently; an error says what is actually true.
 //
-// **This is a finding, not a workaround.** v1.Capability bundles identity with
-// the one write verb, which fits a module that sources content and does not fit
-// one that enriches it. An enrichment-only module has to stub the verb. Worth
-// taking to the SDK if a second such module appears.
+// That v1.Capability bundles identity with the one write verb is a finding for
+// the SDK rather than something to work around here: it fits a module that
+// sources content and does not fit one that enriches it, so an enrichment-only
+// module has to stub the verb. Worth taking to the SDK if a second such module
+// appears.
 func (c *Capability) Import(ctx context.Context, svc v1.ContentService, req v1.ImportRequest) (v1.ImportResult, error) {
 	return v1.ImportResult{}, errCannotImport
 }
@@ -171,7 +165,7 @@ func (c *Capability) Artwork(ctx context.Context, req v1.ArtworkRequest) (v1.Art
 type Settings struct {
 	// APIKey is the user's own fanart.tv project key.
 	//
-	// **It only ever holds the user's key.** It is never populated from
+	// It only ever holds the user's key, and is never populated from
 	// defaultAPIKey as a convenience: configureModule replaces the whole
 	// settings document, so the bundled key reaching this field would write a
 	// shared build-time credential into a user's stored settings the next time
@@ -203,14 +197,14 @@ func decodeSettings(raw []byte) (Settings, error) {
 // resolveKeys picks the credentials for one invocation: the user's key when
 // they have set one, otherwise the key linked into the binary.
 //
-// **This is the only function in the module that reads defaultAPIKey** (architecture#4
-// rule 4). The linker guard reads it too, and that is the deliberate exception:
-// it is a build-tagged test whose whole job is to prove the symbol path still
-// resolves, and it ships in no binary. Keeping it that way is what makes "never
-// written into settings, never rendered, never logged" a property that can be
-// verified by reading rather than a claim to trust.
+// This is the only function in the module that reads defaultAPIKey
+// (architecture#4 rule 4), which is what makes "never written into settings,
+// never rendered, never logged" verifiable by reading. The linker guard reads it
+// too, and that is the deliberate exception: it is a build-tagged test whose
+// whole job is to prove the symbol path still resolves, and it ships in no
+// binary.
 //
-// Anything that needs to know only *whether* a bundled key exists asks
+// Anything that needs to know only whether a bundled key exists asks
 // bundledKeyPresent below, which asks this function rather than the variable.
 func resolveKeys(settings Settings) (apiKey, clientKey string) {
 	apiKey = settings.APIKey
@@ -229,9 +223,9 @@ func resolveKeys(settings Settings) (apiKey, clientKey string) {
 //
 // It resolves against a settings document holding no user key, so the answer
 // arrives as "the resolver found something" and the key itself never leaves
-// resolveKeys. A screen that tested the variable directly would answer the same
-// question and cost rule 4, which is what happened here: the presence checks were
-// reading defaultAPIKey while the comment above still claimed a single reader.
+// resolveKeys. A presence check that read the variable directly would answer the
+// same question and cost architecture#4 rule 4; changing the settings screen is
+// when to re-check that it still does not.
 func bundledKeyPresent() bool {
 	apiKey, _ := resolveKeys(Settings{})
 	return apiKey != ""

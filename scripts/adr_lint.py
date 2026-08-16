@@ -50,12 +50,19 @@ REPOS = {
     "module-fanart-tv", "module-remote-playback", "module-tmdb",
 }
 
-# The old spelling, in every form the corpus actually uses. The separator is
-# bounded rather than single: prose wraps, and `ADR\n  0126` is one citation
-# split by a line break. A single-character class missed three of them through
-# the whole migration and reported zero. Bounded rather than `*` so it cannot
+# The old spelling, in every form the corpus actually uses. The separator class
+# has now been widened twice, both times because it was reporting zero while
+# citations existed:
+#
+#   * prose wraps, so `ADR\n  0126` is one citation split by a line break;
+#   * a *comment* wraps onto a continuation marker, so in Go the same split
+#     reads `ADR\n// 0075` and in a block comment `ADR\n * 0075`. Whitespace
+#     alone does not span those, and two real citations sat in this fleet's Go
+#     comments behind a green gate because of it.
+#
+# Hence `/`, `*` and `#` join the class. Bounded rather than `*` so it cannot
 # leap a blank line onto an unrelated numbered list.
-UNQUALIFIED = re.compile(r"\bADR[\s-]{0,6}(\d{1,4})\b")
+UNQUALIFIED = re.compile(r"\bADR[\s\-/*#]{0,8}(\d{1,4})\b")
 # The new one. The repository name is checked against REPOS, not the pattern,
 # so `issue#12` or a CSS id never reads as a citation.
 QUALIFIED = re.compile(r"\b([a-z][a-z0-9-]*)#(\d+)\b")
